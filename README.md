@@ -1,4 +1,4 @@
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Rinovativ/alaska2-steganalysis/blob/main/ANN_Projekt_Rino_Albertin_Steganalyse.ipynb)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Rinovative/alaska2-steganalysis/blob/main/ANN_Projekt_Rino_Albertin_Steganalyse.ipynb)
 _Interaktives Jupyter Notebook direkt im Browser öffnen (via Colab)_
 
 > **Hinweis:**  
@@ -6,7 +6,7 @@ _Interaktives Jupyter Notebook direkt im Browser öffnen (via Colab)_
 
 # Deep Learning für Steganalyse – ALASKA2-Datensatz (Walhfachprojekt)
 
-**Semesterprojekt** im Rahmen des Studiengangs  
+**Walhfachprojekt** im Rahmen des Studiengangs  
 **BSc Systemtechnik – Vertiefung Computational Engineering**  
 **Frühjahr 2025** – OST – Ostschweizer Fachhochschule  
 **Autor:** Rino Albertin

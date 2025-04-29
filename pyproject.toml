@@ -7,7 +7,7 @@ readme = "README.md"
 packages = [{ include = "src" }]
 
 [tool.poetry.dependencies]
-python = "^3.12"
+python = "^3.11"
 jupyter = "^1.1.1"
 notebook = "^7.4.1"
 pandas = "^2.2.3"
@@ -16,7 +16,7 @@ matplotlib = "^3.10.1"
 opencv-python = "^4.11.0.86"
 numpy = "^2.2.5"
 datasets = "^3.5.1"
-torch = {version = "^2.5.1+cu121", source = "pytorch"}
+torch = { version = "^2.5.1+cu121", source = "pytorch" }
 clip-anytorch = "^2.6.0"
 faiss-cpu = "^1.11.0"
 requests = "^2.32.3"
