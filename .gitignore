@@ -1,0 +1,61 @@
+# ================================
+# 🐍 Python
+# ================================
+__pycache__/
+*.py[cod]
+*.pyd
+*.pyc
+*.so
+*.egg-info/
+
+# ================================
+# 📓 Jupyter
+# ================================
+.ipynb_checkpoints/
+build/
+dist/
+
+# ================================
+# 📁 VSCode / OS
+# ================================
+.vscode/
+*.DS_Store
+Thumbs.db
+
+# ================================
+# 🧪 Cache / Logs
+# ================================
+.mypy_cache/
+.pytest_cache/
+*.log
+*.tmp
+
+# ================================
+# 📦 Daten
+# ================================
+# Ignoriere alle Dateien in den folgenden Ordnern
+data/raw/*
+# Ausnahmen für .gitkeep, damit die Ordnerstruktur erhalten bleibt
+!data/raw/.gitkeep
+# Einschliesslich der Unterordner PD12M und alaska2-image-steganalysis
+!data/raw/PD12M/.gitkeep
+!data/raw/alaska2-image-steganalysis/.gitkeep
+
+# Verhindere, dass Bilder in den Ordnern versioniert werden
+*.jpg
+*.jpeg
+*.png
+!images/**
+
+# ================================
+# ⚙️ Umgebung / Pakete
+# ================================
+.env
+.venv/
+env/
+node_modules/
+*.exe
+*.dll
+*.pdb
+*.map
+*.js
