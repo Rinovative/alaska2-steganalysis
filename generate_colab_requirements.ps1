@@ -1,10 +1,10 @@
 # generate_colab_requirements.ps1
 
-# Exportiere die Abhängigkeiten
+# 1. Exportiere alle Poetry-Abhängigkeiten
 poetry export --without-hashes --without-urls -f requirements.txt -o raw_requirements.txt
 
-# Filtere problematische Pakete überall in der Zeile raus
-Get-Content raw_requirements.txt |
+# 2. Projektabhängigkeiten bereinigen (lösche problematische Kernpakete)
+$projectDeps = Get-Content raw_requirements.txt |
     Where-Object {
         ($_ -notmatch 'ipython') -and
         ($_ -notmatch 'ipykernel') -and
@@ -23,16 +23,26 @@ Get-Content raw_requirements.txt |
         ($_ -notmatch 'pylibcudf') -and
         ($_ -notmatch 'nvidia') -and
         ($_ -notmatch 'moviepy')
-    } |
-    ForEach-Object {
-        $_ -replace '^numpy==.+$', 'numpy>=1.26,<2.1' `
-           -replace '^pyarrow==.+$', 'pyarrow<20' `
-           -replace '^torch==.+$', 'torch' `
-           -replace '^torchvision==.+$', 'torchvision' `
-           -replace '^pandas==.+$', 'pandas'
-    } | Set-Content requirements_colab.txt
+    }
 
-# Aufräumen
+# 3. Feste Basis-Abhängigkeiten definieren
+$baseDeps = @"
+ipykernel==6.17.1
+ipython==7.34.0
+notebook==6.5.7
+pandas==2.2.2
+numpy>=1.26,<2.1
+pyarrow<20
+torch
+torchvision
+decorator<5.0
+"@ -split "`n"
+
+# 4. Alles zusammen in requirements_colab.txt schreiben
+$baseDeps + $projectDeps | Set-Content requirements_colab.txt
+
+# 5. Aufräumen
 Remove-Item raw_requirements.txt
 
-Write-Output "✅ Sauberes requirements_colab.txt erstellt!"
+# 6. Fertigmeldung
+Write-Output "requirements_colab.txt wurde erstellt!"
