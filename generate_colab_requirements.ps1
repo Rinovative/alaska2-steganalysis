@@ -1,10 +1,7 @@
 # generate_colab_requirements.ps1
 
-# 1. Exportiere alle Poetry-Abhängigkeiten
-poetry export --without-hashes --without-urls -f requirements.txt -o raw_requirements.txt
-
-# 2. Projektabhängigkeiten bereinigen (lösche problematische Kernpakete)
-$projectDeps = Get-Content raw_requirements.txt |
+# 1. Exportiere Poetry-Abhängigkeiten für Colab (ohne URLs)
+$colabContent = poetry export --without-hashes --without-urls -f requirements.txt | `
     Where-Object {
         ($_ -notmatch 'ipython') -and
         ($_ -notmatch 'ipykernel') -and
@@ -25,7 +22,7 @@ $projectDeps = Get-Content raw_requirements.txt |
         ($_ -notmatch 'moviepy')
     }
 
-# 3. Feste Basis-Abhängigkeiten definieren
+# 2. Feste Basis-Abhängigkeiten definieren
 $baseDeps = @"
 ipykernel==6.17.1
 ipython==7.34.0
@@ -38,11 +35,13 @@ torchvision
 decorator<5.0
 "@ -split "`n"
 
+# 3. clip-anytorch manuell hinzufügen (mit Python-Constraint)
+$extraDeps = @(
+    'clip-anytorch==2.6.0 ; python_version >= "3.11" and python_version < "4.0"'
+)
+
 # 4. Alles zusammen in requirements_colab.txt schreiben
-$baseDeps + $projectDeps | Set-Content requirements_colab.txt
+$baseDeps + $colabContent + $extraDeps | Set-Content requirements_colab.txt
 
-# 5. Aufräumen
-Remove-Item raw_requirements.txt
-
-# 6. Fertigmeldung
+# 5. Fertigmeldung
 Write-Output "requirements_colab.txt wurde erstellt!"
