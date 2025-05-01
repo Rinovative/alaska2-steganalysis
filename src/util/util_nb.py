@@ -1,3 +1,4 @@
+import inspect
 import os
 
 import ipywidgets as widgets
@@ -53,10 +54,11 @@ def _show_anything(result, fallback_path=None):
         display(result)
 
 
-def make_dropdown_section(plots, dataset_name, description="Plot:"):
+def make_dropdown_section(plots, dataset_name, description="Plot:", use_cache: bool = False):
     """
-    Erstellt eine Section (VBox) mit Dropdown zur Auswahl eines Plots (Lazy Loading!).
-    plots: Liste von (Titel, plot_func, plot_name)
+    Erstellt eine Section (VBox) mit Dropdown zur Auswahl eines Plots.
+    Optionales Caching kann über use_cache=True aktiviert werden.
+    Falls use_cache=False, wird ein eventuell vorhandener Cache-Eintrag automatisch entfernt.
     """
     dropdown = widgets.Dropdown(
         options=[(title, i) for i, (title, _, _) in enumerate(plots)], description=description, style={"description_width": "initial"}
@@ -68,28 +70,40 @@ def make_dropdown_section(plots, dataset_name, description="Plot:"):
         idx = change["new"]
         if last_idx["idx"] == idx:
             return
+
         plot_func = plots[idx][1]
         plot_name = plots[idx][2]
         png_path = util_cache.get_cache_path(dataset_name, "figures", plot_name, "png")
+
         with output:
             output.clear_output(wait=True)
-            plt.close("all")  # Speicher freigeben
-            if not os.path.exists(png_path):
-                result = plot_func()
-                if isinstance(result, tuple):
-                    result = result[0]
-                if isinstance(result, plt.Figure):
-                    util_cache.save_object(result, png_path)
-                    plt.close(result)
+            plt.close("all")
+            if use_cache:
+                if os.path.exists(png_path):
                     display(Image(filename=png_path))
-                else:
-                    _show_anything(result)
+                    last_idx["idx"] = idx
+                    return
             else:
-                display(Image(filename=png_path))
+                if os.path.exists(png_path):
+                    os.remove(png_path)
+            result = plot_func()
+            if isinstance(result, tuple):
+                result = result[0]
+
+            if isinstance(result, plt.Figure):
+                if use_cache:
+                    util_cache.save_object(result, png_path)
+                    display(Image(filename=png_path))
+                    plt.close(result)
+                else:
+                    display(result)
+                    plt.close(result)
+            else:
+                _show_anything(result)
+
         last_idx["idx"] = idx
 
     dropdown.observe(on_plot_change, names="value")
-    # Direkt den ersten Plot anzeigen
     on_plot_change({"type": "change", "name": "value", "new": 0})
 
     return widgets.VBox([dropdown, output])
@@ -98,12 +112,12 @@ def make_dropdown_section(plots, dataset_name, description="Plot:"):
 def make_toggle_shortcut(df, dataset_name):
     """
     Gibt eine Funktion zurück, mit der Dropdown-Plots erstellt werden können:
-    toggle(title, func, plot_name=None, **kwargs)
+    toggle(title, func, plot_name=None, force_recompute=False, **kwargs)
     """
     counter = {"i": 0}
     sanitized_dataset = _sanitize_name(dataset_name)
 
-    def toggle(title, func, plot_name=None, **kwargs):
+    def toggle(title, func, plot_name=None, force_recompute=False, **kwargs):
         if "dataset_name" in func.__code__.co_varnames:
             kwargs.setdefault("dataset_name", dataset_name)
         if plot_name is None:
@@ -111,7 +125,11 @@ def make_toggle_shortcut(df, dataset_name):
             counter["i"] += 1
         else:
             plot_name = _sanitize_name(plot_name)
-        # Gibt zurück: (Tab-Titel, Plotfunktion, Plotname für Cache)
+
+        sig = inspect.signature(func)
+        if "force_recompute" in sig.parameters:
+            kwargs["force_recompute"] = force_recompute
+
         return (title, lambda: func(df=df, **kwargs), plot_name)
 
     return toggle

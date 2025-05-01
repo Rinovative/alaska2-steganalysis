@@ -1,3 +1,4 @@
+import csv
 import heapq
 import random
 import shutil
@@ -179,14 +180,25 @@ def build_pd12m_like_alaska2(
 
     best_urls = [u for _, u in sorted(heap, key=lambda t: -t[0])]
 
-    # 5) Top-URLs final speichern
+    # 5) Top-URLs final speichern mit garantierter JPEG-Kompression
     dataset_dir.mkdir(parents=True, exist_ok=True)
     for idx, url in enumerate(tqdm(best_urls, desc="Speichern")):
         try:
             r = requests.get(url, timeout=5)
-            img = Image.open(BytesIO(r.content)).convert("RGB")
+            original = Image.open(BytesIO(r.content)).convert("RGB")
+
+            # Garantierte Neukodierung: konvertieren zu Array → Image
+            img = Image.fromarray(np.array(original))
             img = img.resize((512, 512), Image.LANCZOS)
-            img.save(dataset_dir / f"{idx + 1:05d}.jpg", "JPEG", quality=90)
+
+            # Zufällige JPEG-Qualität aus {75, 90, 95}
+            quality = random.choice([75, 90, 95])
+
+            # Speichern
+            img.save(dataset_dir / f"{idx + 1:05d}.jpg", "JPEG", quality=quality)
+            with open(dataset_dir / "quality_labels.csv", "a", newline="") as f:
+                f.write(f"{idx + 1:05d}.jpg,{quality}\n")
+
         except Exception:
             continue
 
@@ -279,10 +291,10 @@ def build_pd12m_like_alaska2(
 def generate_stego_variants(cover_path: str = "data/raw/PD12M/Cover", stego_base_path: str = "data/raw/PD12M/") -> str:
     """
     Erzeugt drei Stego-Varianten (JMiPOD, JUNIWARD, UERD) aus den Cover-Bildern,
-    falls die Varianten noch nicht existieren.
+    mit gleicher JPEG-Qualität wie die Cover-Version aus quality_labels.csv.
 
     Args:
-        cover_folder_path (str): Pfad zum Cover-Ordner.
+        cover_path (str): Pfad zum Cover-Ordner.
         stego_base_path (str): Basis-Ordner für die Stego-Ordner.
 
     Returns:
@@ -296,6 +308,18 @@ def generate_stego_variants(cover_path: str = "data/raw/PD12M/Cover", stego_base
     # Falls Stego-Ordner bereits existieren und nicht leer sind → Abbruch
     if all(folder.exists() and any(folder.glob("*.jpg")) for folder in [jmipod_folder, juniward_folder, uerd_folder]):
         return "✅ Stego-Ordner existieren bereits und enthalten Bilder. Keine neue Generierung nötig."
+
+    # Lade JPEG-Qualitäten aus CSV
+    quality_file = cover_folder / "quality_labels.csv"
+    if not quality_file.exists():
+        return f"❌ quality_labels.csv wurde nicht gefunden unter {quality_file}"
+
+    quality_map = {}
+    with open(quality_file, newline="") as f:
+        reader = csv.reader(f)
+        for row in reader:
+            fname, quality = row
+            quality_map[fname] = int(quality)
 
     # Zielordner erstellen, falls sie fehlen
     jmipod_folder.mkdir(parents=True, exist_ok=True)
@@ -352,10 +376,13 @@ def generate_stego_variants(cover_path: str = "data/raw/PD12M/Cover", stego_base
         img_juniward = cv2.cvtColor(cv2.merge([juniward_y.astype(np.uint8), cr, cb]), cv2.COLOR_YCrCb2BGR)
         img_uerd = cv2.cvtColor(cv2.merge([uerd_y.astype(np.uint8), cr, cb]), cv2.COLOR_YCrCb2BGR)
 
-        # Speichern
-        cv2.imwrite(str(jmipod_folder / cover_path.name), img_jmipod)
-        cv2.imwrite(str(juniward_folder / cover_path.name), img_juniward)
-        cv2.imwrite(str(uerd_folder / cover_path.name), img_uerd)
+        # Qualität aus CSV holen
+        cover_quality = quality_map.get(cover_path.name, 90)
+
+        # Speichern mit JPEG-Qualität des Covers
+        cv2.imwrite(str(jmipod_folder / cover_path.name), img_jmipod, [int(cv2.IMWRITE_JPEG_QUALITY), cover_quality])
+        cv2.imwrite(str(juniward_folder / cover_path.name), img_juniward, [int(cv2.IMWRITE_JPEG_QUALITY), cover_quality])
+        cv2.imwrite(str(uerd_folder / cover_path.name), img_uerd, [int(cv2.IMWRITE_JPEG_QUALITY), cover_quality])
 
     return f"✅ {len(cover_images)} Cover-Bilder erfolgreich verarbeitet und Stego-Varianten erzeugt."
 
@@ -363,20 +390,31 @@ def generate_stego_variants(cover_path: str = "data/raw/PD12M/Cover", stego_base
 def prepare_dataset(dataset_root: str, class_labels: dict, subsample_percent: float = 1.0, seed: int = 42) -> pd.DataFrame:
     """
     Erstellt ein Datenset aus einem JPEG-Steganalyse-Datensatz,
-    indem optional nur ein Teil der Bildnamen zufällig ausgewählt wird.
+    inklusive optionaler Subsampling-Logik und vollständiger Metadatenextraktion.
+
+    Für jedes Bild werden folgende Informationen extrahiert:
+    - 'path': Pfad zur JPEG-Datei
+    - 'label_name': Klassenname (Cover, JMiPOD, ...)
+    - 'jpeg_quality': geschätzte JPEG-Qualitätsstufe (75, 90, 95), basierend auf dem Mittelwert der Y-Quantisierungstabelle
+    - 'width', 'height': Bildauflösung
+    - 'mode': Farbraum-Modus (z. B. 'YCbCr')
+    - 'q_y_00' bis 'q_y_63': alle 64 Einträge der Y-Quantisierungstabelle
+
+    Hinweis: Die JPEG-Qualitätsstufe wird heuristisch geschätzt, da sie nicht explizit gespeichert ist.
+    Die Zuweisung erfolgt basierend auf typischen Mittelwerten aus libjpeg-Standardtabellen.
 
     Args:
-        dataset_root (Path): Pfad zum Verzeichnis mit den Klassenordnern.
+        dataset_root (str): Pfad zum Verzeichnis mit den Klassenordnern.
         class_labels (dict): Mapping von Klassenordnern zu numerischen Labels.
         subsample_percent (float): Anteil der Bildnamen, die verwendet werden sollen (z.B. 0.10 = 10% oder 1.0 = 100%).
         seed (int): Seed für die Zufallsauswahl.
 
     Returns:
-        pd.DataFrame: DataFrame mit Spalten 'path' und 'label', zufällig durchmischt.
+        pd.DataFrame: Aufbereiteter Datensatz mit Metadaten.
     """
     random.seed(seed)
-
     dataset_root = Path(dataset_root)
+
     cover_folder = dataset_root / "Cover"
     all_images = sorted([img.name for img in cover_folder.glob("*.jpg")])
 
@@ -387,20 +425,54 @@ def prepare_dataset(dataset_root: str, class_labels: dict, subsample_percent: fl
         selected_image_names = all_images
 
     image_paths = []
-    labels = []
+    label_names = []
 
-    for class_name, label in class_labels.items():
+    for class_name in class_labels:
         class_folder = dataset_root / class_name
         for img_name in selected_image_names:
             img_path = class_folder / img_name
             image_paths.append(str(img_path))
-            labels.append(label)
+            label_names.append(class_name)
 
-    df = pd.DataFrame({"path": image_paths, "label": labels})
+    df = pd.DataFrame(
+        {
+            "path": image_paths,
+            "label_name": label_names,
+        }
+    )
+
+    # Metadaten effizient extrahieren
+    meta_data = []
+    for path in tqdm(df["path"], desc="Extrahiere Metadaten"):
+        result = {"jpeg_quality": -1, "width": -1, "height": -1, "mode": "unknown", **{f"q_y_{i:02d}": -1 for i in range(64)}}
+
+        try:
+            with Image.open(path) as img:
+                result["width"], result["height"] = img.size
+                result["mode"] = img.mode
+
+                if hasattr(img, "quantization") and img.quantization:
+                    q_y = img.quantization.get(0, [-1] * 64)
+                    q_mean = np.mean(q_y)
+                    if q_mean < 8:  # empirisch: mean ≈ 5 → Qualität 95
+                        result["jpeg_quality"] = 95
+                    elif q_mean < 20:  # empirisch: mean ≈ 11 → Qualität 90
+                        result["jpeg_quality"] = 90
+                    else:  # empirisch: mean ≈ 29 → Qualität 75
+                        result["jpeg_quality"] = 75
+                    # result["jpeg_quality"] = q_mean
+                    for i in range(min(64, len(q_y))):
+                        result[f"q_y_{i:02d}"] = q_y[i]
+        except Exception:
+            pass
+
+        meta_data.append(result)
+
+    meta_df = pd.DataFrame(meta_data)
+    df = pd.concat([df.reset_index(drop=True), meta_df.reset_index(drop=True)], axis=1)
 
     # Shuffle
     df = df.sample(frac=1, random_state=seed).reset_index(drop=True)
-
     return df
 
 
