@@ -21,6 +21,10 @@ def main():
     ]
     for cmd in cmds:
         print(f"\n>>> {' '.join(cmd)}")
-        result = subprocess.run(["poetry", "run"] + cmd)
+        result = subprocess.run(cmd)
         if result.returncode != 0:
             sys.exit(result.returncode)
+
+
+if __name__ == "__main__":
+    main()

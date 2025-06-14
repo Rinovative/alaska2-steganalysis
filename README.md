@@ -3,6 +3,7 @@ _Interaktives Jupyter Notebook direkt im Browser öffnen (via Colab)_
 
 > **Hinweis:**  
 > Wenn der originale ALASKA2-Datensatz nicht verfügbar ist, wird automatisch ein synthetisches Demo-Datensatz geladen.
+> Das synthetische Demo-Subset enthält keine echten Nachrichten, sondern simuliert typische Frequenzmodifikationen echter Steganographieverfahren.
 
 # Deep Learning für Steganalyse – ALASKA2-Datensatz (Walhfachprojekt)
 
@@ -31,29 +32,71 @@ Das Projekt umfasst:
 ---
 
 ## ⚙️ Lokale Ausführung
+<details>
+<summary><strong>Variante A – Ausführung in Visual Studio Code mit Docker</strong> (empfohlen)</summary>
+
+**Voraussetzungen:**
+
+- [Docker Desktop](https://www.docker.com/products/docker-desktop) ist installiert
+- [Visual Studio Code](https://code.visualstudio.com/) ist installiert
+- Die Erweiterung **"Dev Containers"** ist in VS Code aktiviert
+
+**Vorgehen:**
 
 1. Repository klonen:
    ```bash
-   git clone https://github.com/DEIN_USERNAME/REPO.git
-   cd REPO
+   git clone https://github.com/Rinovative/alaska2-steganalysis.git
+   cd alaska2-steganalysis
    ```
 
-2. Abhängigkeiten installieren:
-   ```bash
-   pip install -r requirements.txt
-   ```
+2. Projektverzeichnis in Visual Studio Code öffnen
 
-3. Notebook starten:
-   ```bash
-   jupyter notebook
-   ```
+3. Container starten:
+   - Entweder über die Schaltfläche `Reopen in Container` unten rechts  
+   - oder über `F1` → `Dev Containers: Reopen in Container`
 
-4. Notebook öffnen:  
+4. Nach erfolgreichem Containeraufbau kann das Notebook direkt in VS Code geöffnet werden:  
    `ANN_Projekt_Rino_Albertin_Steganalyse.ipynb`
+</details>
 
+<details>
+<summary><strong>Variante B – Ausführung über Docker CLI (ohne VS Code)</strong></summary>
+
+**Voraussetzungen:**
+
+- [Docker](https://www.docker.com/) ist installiert und lauffähig
+
+**Vorgehen:**
+
+1. Repository klonen:
+   ```bash
+   git clone https://github.com/Rinovative/alaska2-steganalysis.git
+   cd alaska2-steganalysis
+   ```
+
+2. Docker-Image erstellen:
+   ```bash
+   docker build -t stego-dev .
+   ```
+
+3. Container starten und Projektverzeichnis einbinden:
+   ```bash
+   docker run -it --rm -p 8888:8888 -v $(pwd):/app stego-dev
+   ```
+
+4. Innerhalb des Containers Jupyter Notebook starten:
+   ```bash
+   jupyter notebook --ip=0.0.0.0 --no-browser --allow-root
+   ```
+
+5. Die in der Konsole ausgegebene URL kann verwendet werden, um über einen lokalen Browser auf das Notebook zuzugreifen.
+
+</details>
 ---
 
 ## 📂 Projektstruktur
+<details>
+<summary><strong>Projektstruktur anzeigen</strong></summary>
 
 ```bash
 .
@@ -99,8 +142,3 @@ Dieses Projekt steht unter der [MIT-Lizenz](LICENSE).
   [Hugging Face – Rinovative/pd12m_dct_based_synthetic_stegano](https://huggingface.co/datasets/Rinovative/pd12m_dct_based_synthetic_stegano)
 
 - Lehrunterlagen „Applied Neural Networks“ – OST – Ostschweizer Fachhochschule
-
----
-
-**Hinweis:**  
-Das synthetische Demo-Subset enthält keine echten Nachrichten, sondern simuliert typische Frequenzmodifikationen echter Steganographieverfahren.
