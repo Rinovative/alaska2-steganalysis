@@ -1,4 +1,6 @@
-# import csv
+from __future__ import annotations
+
+# Standard library
 import heapq
 import random
 import shutil
@@ -9,10 +11,10 @@ from io import BytesIO
 from itertools import islice
 from pathlib import Path
 
+# Third-party libraries
 import clip
-
-# import cv2
 import faiss
+import jpegio as jio
 import numpy as np
 import pandas as pd
 import requests
@@ -197,8 +199,6 @@ def build_pd12m_like_reference(
 
             # Speichern
             img.save(dataset_dir / f"{idx + 1:05d}.jpg", "JPEG", quality=quality)
-            with open(dataset_dir / "quality_labels.csv", "a", newline="") as f:
-                f.write(f"{idx + 1:05d}.jpg,{quality}\n")
 
         except Exception:
             continue
@@ -206,114 +206,126 @@ def build_pd12m_like_reference(
     return f"✅ {len(best_urls)} Cover in '{dataset_dir}' gespeichert."
 
 
-def generate_stego_variants(cover_path: str = "data/raw/PD12M/Cover", stego_base_path: str = "data/raw/PD12M/") -> str:
-    # """
-    # Erzeugt drei realitätsnahe Stego-Varianten (JMiPOD, JUNIWARD, UERD) aus Cover-Bildern,
-    # mit gleicher JPEG-Qualität wie in quality_labels.csv.
+def _pick_payload_indices(mask: np.ndarray, payload_rate: float, rng: np.random.Generator) -> np.ndarray:
+    """
+    Hilfsfunktion: wähle zufällig Positionen aus `mask` (True-Elements),
+    so dass ungefähr `payload_rate × mask.sum()` Koef­fi­zienten modifiziert werden.
+    """
+    candidates = np.column_stack(np.where(mask))
+    n_bits = int(np.round(payload_rate * len(candidates)))
+    if n_bits == 0:
+        return np.empty((0, 2), dtype=int)
+    sel = rng.choice(len(candidates), n_bits, replace=False)
+    return candidates[sel]
 
-    # Args:
-    #     cover_path (str): Pfad zum Cover-Ordner.
-    #     stego_base_path (str): Basis-Ordner für die Stego-Ordner.
 
-    # Returns:
-    #     str: Statusmeldung.
-    # """
-    # cover_folder = Path(cover_path)
-    # jmipod_folder = Path(stego_base_path) / "JMiPOD"
-    # juniward_folder = Path(stego_base_path) / "JUNIWARD"
-    # uerd_folder = Path(stego_base_path) / "UERD"
+def generate_stego_variants(
+    cover_path: str | Path = "data/raw/PD12M/Cover",
+    stego_base_path: str | Path = "data/raw/PD12M",
+    payload_rates: dict[str, float] | None = None,
+    seed: int = 42,
+) -> str:
+    """
+    Erzeugt JMiPOD-, JUNIWARD- und UERD-ähnliche Varianten durch ±1-Flips
+    quantisierter AC-DCT-Koeffizienten OHNE JPEG-Rekompression.
 
-    # if all(folder.exists() and any(folder.glob("*.jpg")) for folder in [jmipod_folder, juniward_folder, uerd_folder]):
-    #     return "✅ Stego-Ordner existieren bereits und enthalten Bilder. Keine neue Generierung nötig."
+    ▸ **Quantisierungstabellen bleiben unverändert**
+    ▸ **Farbinformation (Cb/Cr) bleibt unberührt**
+    ▸ **Payload-Rate** = Bits pro *nicht-null* AC-Koeffizient
 
-    # quality_file = cover_folder / "quality_labels.csv"
-    # if not quality_file.exists():
-    #     return f"❌ quality_labels.csv wurde nicht gefunden unter {quality_file}"
+    Args
+    ----
+    cover_path
+        Ordner mit Cover-JPEGs (z. B. „…/PD12M/Cover“).
+    stego_base_path
+        Basisordner; es werden Unterordner „JMiPOD“, „JUNIWARD“, „UERD“
+        angelegt.
+    payload_rates
+        Dict mit Payload-Raten pro Algorithmus (Default ≈ ALASKA2-Level).
+        Beispiel: ``{"JMiPOD": 0.4, "JUNIWARD": 0.4, "UERD": 0.4}``
+    seed
+        RNG-Seed.
 
-    # quality_map = {}
-    # with open(quality_file, newline="") as f:
-    #     reader = csv.reader(f)
-    #     for row in reader:
-    #         fname, quality = row
-    #         quality_map[fname] = int(quality)
+    Returns
+    -------
+    str
+        Statusmeldung.
+    """
+    rng = np.random.default_rng(seed)
 
-    # jmipod_folder.mkdir(parents=True, exist_ok=True)
-    # juniward_folder.mkdir(parents=True, exist_ok=True)
-    # uerd_folder.mkdir(parents=True, exist_ok=True)
+    cover_folder = Path(cover_path)
+    jmipod_folder = Path(stego_base_path) / "JMiPOD"
+    juniward_folder = Path(stego_base_path) / "JUNIWARD"
+    uerd_folder = Path(stego_base_path) / "UERD"
+    if all(folder.exists() and any(folder.glob("*.jpg")) for folder in [jmipod_folder, juniward_folder, uerd_folder]):
+        return "✅ Stego-Ordner existieren bereits und enthalten Bilder. Keine neue Generierung nötig."
 
-    # cover_images = list(cover_folder.glob("*.jpg"))
-    # if not cover_images:
-    #     return f"❌ Keine Cover-Bilder im Ordner {cover_folder} gefunden."
+    for f in (jmipod_folder, juniward_folder, uerd_folder):
+        f.mkdir(parents=True, exist_ok=True)
 
-    # for cover_path in cover_images:
-    #     img = cv2.imread(str(cover_path))
-    #     img_ycc = cv2.cvtColor(img, cv2.COLOR_BGR2YCrCb)
-    #     y, cr, cb = cv2.split(img_ycc)
-    #     y = y.astype(np.float32)
+    # Nutzlast-Raten
+    if payload_rates is None:
+        payload_rates = {"JMiPOD": 0.4, "JUNIWARD": 0.4, "UERD": 0.4}
 
-    #     block_size = 8
-    #     h, w = y.shape
+    cover_images = sorted(cover_folder.glob("*.jpg"))
+    if not cover_images:
+        return f"❌ Keine Cover-Bilder in {cover_folder} gefunden."
 
-    #     jmipod_y = np.zeros_like(y)
-    #     juniward_y = np.zeros_like(y)
-    #     uerd_y = np.zeros_like(y)
+    # -----------------------------------------------------------
+    for cover_img in tqdm(cover_images, desc="Erzeuge Stego-Varianten"):
+        jpeg = jio.read(str(cover_img))
+        y_coef = jpeg.coef_arrays[0]  # Y-Kanal (quanti­siert, int16)
+        h, w = y_coef.shape
 
-    #     for i in range(0, h, block_size):
-    #         for j in range(0, w, block_size):
-    #             block = y[i : i + block_size, j : j + block_size]
-    #             if block.shape != (8, 8):
-    #                 continue
+        # Masks: True = potentiell änder­bar
+        nz_mask = y_coef != 0  # keine DC=0-Flips
+        dc_mask = np.zeros_like(y_coef, dtype=bool)
+        dc_mask[0::8, 0::8] = True  # DC-Koeff. ausschließen
+        ac_mask = nz_mask & ~dc_mask
 
-    #             dct_block = cv2.dct(block)
-    #             jmipod_block = dct_block.copy()
-    #             juniward_block = dct_block.copy()
-    #             uerd_block = dct_block.copy()
+        # Frequenzpositionen (u+v)-Matrix für einfache JUNIWARD-Gewichtung
+        u = np.tile(np.arange(h)[:, None], (1, w))
+        v = np.tile(np.arange(w)[None, :], (h, 1))
+        freq_sum = (u % 8) + (v % 8)  # 0 (DC) … 14 (HF)
 
-    #             if np.std(block) > 5:
-    #                 # JMiPOD: Additive Störung im mittleren Frequenzbereich
-    #                 if np.random.rand() < 0.1:
-    #                     mid_mask = np.zeros((8, 8), dtype=np.float32)
-    #                     mid_mask[2:6, 2:6] = 1
-    #                     jmipod_block += mid_mask * np.random.normal(0, 0.02, (8, 8))
+        # ---------- JMiPOD ----------
+        # mittlere Frequenzen (2–6) bevorzugen
+        jm_mask_mid = (freq_sum >= 2) & (freq_sum <= 6) & ac_mask
+        idx_jm = _pick_payload_indices(jm_mask_mid, payload_rates["JMiPOD"], rng)
+        y_jm = y_coef.copy()
+        y_jm[idx_jm[:, 0], idx_jm[:, 1]] += rng.choice([-1, 1], size=len(idx_jm))
 
-    #                 # JUNIWARD: Leichte Verstärkung hochfrequenter Koeffizienten
-    #                 if np.random.rand() < 0.1:
-    #                     high_mask = np.zeros((8, 8), dtype=np.float32)
-    #                     high_mask[5:, :] = 1
-    #                     high_mask[:, 5:] = 1
-    #                     mask = np.random.rand(8, 8) < 0.05
-    #                     scale = 1.0 + np.random.normal(0, 0.015, (8, 8))
-    #                     juniward_block += high_mask * mask * juniward_block * (scale - 1.0)
+        # ---------- JUNIWARD ----------
+        # hochfrequente (>6) und texturreiche Blöcke (AC-Energie)
+        hf_mask = (freq_sum > 6) & ac_mask
+        # einfache Textur-Schätzung: Varianz im 8×8-Block > Schwelle
+        energy = np.abs(y_coef).reshape(h // 8, 8, w // 8, 8).sum(axis=(1, 3))  # Block-Energie
+        high_energy_blocks = energy > np.percentile(energy, 70)
+        block_mask = np.repeat(np.repeat(high_energy_blocks, 8, axis=0), 8, axis=1)
+        ju_mask = hf_mask & block_mask
+        idx_ju = _pick_payload_indices(ju_mask, payload_rates["JUNIWARD"], rng)
+        y_ju = y_coef.copy()
+        y_ju[idx_ju[:, 0], idx_ju[:, 1]] += rng.choice([-1, 1], size=len(idx_ju))
 
-    #                 # UERD: Zufällige, breit gestreute Noise-Komponenten
-    #                 if np.random.rand() < 0.1:
-    #                     random_mask = np.random.rand(8, 8) < 0.02
-    #                     uerd_block += random_mask * np.random.normal(0, 0.01, (8, 8))
+        # ---------- UERD ----------
+        # breit gestreut, zufällig
+        ue_mask = ac_mask
+        idx_ue = _pick_payload_indices(ue_mask, payload_rates["UERD"], rng)
+        y_ue = y_coef.copy()
+        y_ue[idx_ue[:, 0], idx_ue[:, 1]] += rng.choice([-1, 1], size=len(idx_ue))
 
-    #             # Inverse DCT und Begrenzung auf gültigen Wertebereich
-    #             jmipod_block = np.clip(cv2.idct(jmipod_block), 0, 255)
-    #             juniward_block = np.clip(cv2.idct(juniward_block), 0, 255)
-    #             uerd_block = np.clip(cv2.idct(uerd_block), 0, 255)
+        # ---------- Speichern ----------
+        for algo, y_mod, out_folder in [
+            ("JMiPOD", y_jm, jmipod_folder),
+            ("JUNIWARD", y_ju, juniward_folder),
+            ("UERD", y_ue, uerd_folder),
+        ]:
+            jpeg_mod = jio.read(str(cover_img))
+            jpeg_mod.coef_arrays[0] = y_mod.astype(np.int16)
+            out_path = out_folder / cover_img.name
+            jio.write(jpeg_mod, str(out_path))
 
-    #             # Rückspeichern der modifizierten Blöcke
-    #             jmipod_y[i : i + block_size, j : j + block_size] = jmipod_block
-    #             juniward_y[i : i + block_size, j : j + block_size] = juniward_block
-    #             uerd_y[i : i + block_size, j : j + block_size] = uerd_block
-
-    #     # Zusammenfügen der Farbkanäle und Rücktransformation in BGR
-    #     img_jmipod = cv2.cvtColor(cv2.merge([jmipod_y.astype(np.uint8), cr, cb]), cv2.COLOR_YCrCb2BGR)
-    #     img_juniward = cv2.cvtColor(cv2.merge([juniward_y.astype(np.uint8), cr, cb]), cv2.COLOR_YCrCb2BGR)
-    #     img_uerd = cv2.cvtColor(cv2.merge([uerd_y.astype(np.uint8), cr, cb]), cv2.COLOR_YCrCb2BGR)
-
-    #     cover_quality = quality_map.get(cover_path.name, 90)
-
-    #     # Speicherung mit JPEG-Kompression in jeweiligem Stego-Ordner
-    #     cv2.imwrite(str(jmipod_folder / cover_path.name), img_jmipod, [int(cv2.IMWRITE_JPEG_QUALITY), cover_quality])
-    #     cv2.imwrite(str(juniward_folder / cover_path.name), img_juniward, [int(cv2.IMWRITE_JPEG_QUALITY), cover_quality])
-    #     cv2.imwrite(str(uerd_folder / cover_path.name), img_uerd, [int(cv2.IMWRITE_JPEG_QUALITY), cover_quality])
-
-    # return f"✅ {len(cover_images)} Cover-Bilder erfolgreich verarbeitet und realitätsnahe Stego-Varianten erzeugt."
-    return "✅ Cover-Bilder erfolgreich verarbeitet und realitätsnahe Stego-Varianten erzeugt."
+    return f"✅ {len(cover_images)} Bilder verarbeitet – Stego-Varianten liegen in {stego_base_path}/(JMiPOD|JUNIWARD|UERD)"
 
 
 def prepare_dataset(dataset_root: str, class_labels: dict, subsample_percent: float = 1.0, seed: int = 42) -> pd.DataFrame:

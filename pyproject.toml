@@ -13,7 +13,6 @@ notebook = "^7.4.1"
 pandas = "^2.2.3"
 scikit-learn = "^1.6.1"
 matplotlib = "^3.10.1"
-opencv-python = "^4.11.0.86"
 numpy = "^2.2.5"
 datasets = "^3.5.1"
 torch = { version = "^2.5.1+cu121", source = "pytorch" }
@@ -25,6 +24,7 @@ seaborn = "^0.13.2"
 plotly = "^6.0.1"
 scipy = "^1.15.2"
 jpegio = "^0.2.8"
+opencv-python-headless = "^4.11.0.86"
 
 [tool.poetry.group.dev.dependencies]
 isort = "^6.0.1"
