@@ -6,7 +6,7 @@ from .util_cache import (
     save_object,
 )
 from .util_data import (
-    build_pd12m_like_alaska2,
+    build_pd12m_like_reference,
     download_synthetic_PD12M,
     generate_stego_variants,
     prepare_dataset,
@@ -21,7 +21,7 @@ from .util_nb import (
 __all__ = [
     # data utilities
     "download_synthetic_PD12M",
-    "build_pd12m_like_alaska2",
+    "build_pd12m_like_reference",
     "generate_stego_variants",
     "prepare_dataset",
     "split_dataset_by_filename",

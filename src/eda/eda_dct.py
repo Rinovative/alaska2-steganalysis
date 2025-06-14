@@ -52,7 +52,7 @@ def plot_dct_delta_matrix(df: pd.DataFrame, dataset_name: str = "", force_recomp
     for ax, cls in zip(axes, stego_classes):
         cls_mean = df[df["label_name"] == cls][q_cols].mean().values.reshape(8, 8)
         delta = cls_mean - cover_mean
-        sns.heatmap(delta, cmap="coolwarm", center=0, annot=True, fmt=".1f", ax=ax, cbar=True)
+        sns.heatmap(delta, cmap="coolwarm", center=0, annot=True, fmt=".2f", ax=ax, cbar=True)
         ax.set_title(f"{cls} – Δ zu Cover")
         ax.axis("off")
 

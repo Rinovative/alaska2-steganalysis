@@ -1,0 +1,17 @@
+# Alles ignorieren …
+**
+
+# … außer diesen Pfaden:
+!pyproject.toml
+!poetry.lock
+!src/
+!ANN_Projekt_Rino_Albertin_Steganalyse.ipynb
+!.devcontainer/
+
+# Temporäre & große Ordner ausschließen:
+data/
+images/
+.cache/
+.venv/
+.git/
+*.ipynb_checkpoints

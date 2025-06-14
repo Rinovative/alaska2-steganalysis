@@ -278,7 +278,6 @@ def show_outliers_by_ychannel(df: pd.DataFrame, dataset_name: str = "", z_thresh
     df = df.dropna(subset=["y_mean"])
     df["z_score"] = zscore(df["y_mean"])
 
-    # Finde alle Motive mit mindestens einer Variante als Outlier
     outlier_ids = df[np.abs(df["z_score"]) > z_thresh]["motif_id"].unique()
     grouped = [df[df["motif_id"] == mid].sort_values("label_name") for mid in outlier_ids]
     grouped = [g for g in grouped if len(g) > 1]
@@ -287,7 +286,10 @@ def show_outliers_by_ychannel(df: pd.DataFrame, dataset_name: str = "", z_thresh
         print(f"Keine Ausreißergruppen mit Z-Score > {z_thresh} gefunden.")
         return
 
-    idx_box = widgets.BoundedIntText(value=0, min=0, max=len(grouped) - 1, description="Gruppe:")
+    idx_input = widgets.BoundedIntText(value=0, min=0, max=len(grouped) - 1, description="Gruppe:")
+    btn_prev = widgets.Button(description="←", layout=widgets.Layout(width="40px"))
+    btn_next = widgets.Button(description="→", layout=widgets.Layout(width="40px"))
+    btn_row = widgets.HBox([idx_input, btn_prev, btn_next])
     out = widgets.Output()
 
     def render(idx):
@@ -309,10 +311,13 @@ def show_outliers_by_ychannel(df: pd.DataFrame, dataset_name: str = "", z_thresh
             plt.tight_layout()
             plt.show()
 
-    def on_change(change):
-        render(change["new"])
+    def go_relative(delta: int):
+        new_idx = max(0, min(len(grouped) - 1, idx_input.value + delta))
+        idx_input.value = new_idx
 
-    idx_box.observe(on_change, names="value")
+    btn_prev.on_click(lambda _: go_relative(-1))
+    btn_next.on_click(lambda _: go_relative(1))
+    idx_input.observe(lambda change: render(change["new"]), names="value")
+
     render(0)
-
-    return widgets.VBox([idx_box, out])
+    return widgets.VBox([btn_row, out])
