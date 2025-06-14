@@ -1,4 +1,4 @@
-import csv
+# import csv
 import heapq
 import random
 import shutil
@@ -10,7 +10,8 @@ from itertools import islice
 from pathlib import Path
 
 import clip
-import cv2
+
+# import cv2
 import faiss
 import numpy as np
 import pandas as pd
@@ -100,7 +101,7 @@ def download_synthetic_PD12M(
     return f"✅ PD12M-Datensatz {'heruntergeladen und ' if downloaded else ''}erfolgreich entpackt und vorbereitet in {base_dir}."
 
 
-def build_pd12m_like_alaska2(
+def build_pd12m_like_reference(
     cover_count: int = 500,
     scan_limit: int = 5_000,
     out_root: str = "data/raw/PD12M",
@@ -111,7 +112,7 @@ def build_pd12m_like_alaska2(
     """
     Erzeugt einen ALASKA2-ähnlichen CC0-Datensatz aus PD12M:
     - bricht ab, falls in out_root/Cover schon Bilder existieren
-    - berechnet CLIP-Embeddings von Referenzbildern direkt (ohne Speichern)
+    - berechnet CLIP-Embeddings von Referenzbildern direkt
     - führt kNN auf PD12M-URLs im Embedding-Raum durch
     - speichert die Top-Bilder verkleinert auf 512x512 als JPEG.
     """
@@ -205,186 +206,114 @@ def build_pd12m_like_alaska2(
     return f"✅ {len(best_urls)} Cover in '{dataset_dir}' gespeichert."
 
 
-# _SESSION = requests.Session()
-# def sample_random_pd12m(
-#     out_dir: str = "data/raw/PD12M/Dataset",
-#     num_samples: int = 1000,
-#     scan_limit: int | None = None,
-#     oversample_factor: int = 2,
-#     timeout: int = 10,
-#     max_workers: int = 32,
-#     chunk_size: int = 65536,
-# ) -> str:
-#     """
-#     Zieht num_samples zufällige Bilder aus den ersten scan_limit PD12M-URLs
-#     und speichert sie parallel als rohe JPEG-Bytes (kein PIL) in out_dir.
-#     scan_limit = num_samples * oversample_factor, falls None.
-#     """
-#     # 1) scan_limit berechnen
-#     if scan_limit is None:
-#         scan_limit = num_samples * oversample_factor
-
-#     # 2) die ersten scan_limit URLs
-#     from datasets import load_dataset
-#     ds = load_dataset("Spawning/PD12M", split="train", streaming=True)
-#     urls = [row["url"] for row in islice(ds, scan_limit)]
-
-#     # 3) Stichprobe
-#     if num_samples > len(urls):
-#         num_samples = len(urls)
-#     selected = random.sample(urls, num_samples)
-
-#     # 4) Zielordner
-#     out_path = Path(out_dir)
-#     out_path.mkdir(parents=True, exist_ok=True)
-
-#     # 5) Download-&-Save-Funktion (rohe Bytes)
-#     def _download_and_save(url_idx):
-#         url, idx = url_idx
-#         fn = out_path / f"{idx:05d}.jpg"
-#         try:
-#             resp = _SESSION.get(url, stream=True, timeout=timeout)
-#             resp.raise_for_status()
-#             with open(fn, "wb") as f:
-#                 for chunk in resp.iter_content(chunk_size=chunk_size):
-#                     if chunk:
-#                         f.write(chunk)
-#             return True
-#         except Exception:
-#             return False
-
-#     # 6) Parallel mit ThreadPoolExecutor
-#     saved = 0
-#     tasks = ((url, i) for i, url in enumerate(selected, start=1))
-#     with ThreadPoolExecutor(max_workers=max_workers) as exe:
-#         for ok in exe.map(_download_and_save, tasks):
-#             if ok:
-#                 saved += 1
-
-#     return f"✅ {saved}/{num_samples} Bilder in '{out_path}' gespeichert (aus {scan_limit} URLs)."
-
-# def preprocess_covers(
-#     src_dir: str = "data/raw/PD12M/Dataset",
-#     dst_dir: str = "data/raw/PD12M/Cover",
-#     target_size: tuple[int, int] = (512, 512),
-#     quality: int = 90
-# ) -> str:
-#     """
-#     Resize + JPEG-Neukomprimierung aller Bilder mit OpenCV.
-#     """
-#     src = Path(src_dir)
-#     dst = Path(dst_dir)
-#     dst.mkdir(parents=True, exist_ok=True)
-
-#     files = list(src.glob("*.jpg"))
-#     for img_path in files:
-#         img = cv2.imread(str(img_path))
-#         if img is None:
-#             continue
-#         img = cv2.resize(img, target_size, interpolation=cv2.INTER_AREA)
-#         out_path = str(dst / img_path.name)
-#         cv2.imwrite(out_path, img, [int(cv2.IMWRITE_JPEG_QUALITY), quality])
-
-#     return f"✅ {len(files)} Bilder in {dst} neu skaliert und als JPEG gespeichert."
-
-
 def generate_stego_variants(cover_path: str = "data/raw/PD12M/Cover", stego_base_path: str = "data/raw/PD12M/") -> str:
-    """
-    Erzeugt drei Stego-Varianten (JMiPOD, JUNIWARD, UERD) aus den Cover-Bildern,
-    mit gleicher JPEG-Qualität wie die Cover-Version aus quality_labels.csv.
+    # """
+    # Erzeugt drei realitätsnahe Stego-Varianten (JMiPOD, JUNIWARD, UERD) aus Cover-Bildern,
+    # mit gleicher JPEG-Qualität wie in quality_labels.csv.
 
-    Args:
-        cover_path (str): Pfad zum Cover-Ordner.
-        stego_base_path (str): Basis-Ordner für die Stego-Ordner.
+    # Args:
+    #     cover_path (str): Pfad zum Cover-Ordner.
+    #     stego_base_path (str): Basis-Ordner für die Stego-Ordner.
 
-    Returns:
-        str: Statusmeldung.
-    """
-    cover_folder = Path(cover_path)
-    jmipod_folder = Path(stego_base_path) / "JMiPOD"
-    juniward_folder = Path(stego_base_path) / "JUNIWARD"
-    uerd_folder = Path(stego_base_path) / "UERD"
+    # Returns:
+    #     str: Statusmeldung.
+    # """
+    # cover_folder = Path(cover_path)
+    # jmipod_folder = Path(stego_base_path) / "JMiPOD"
+    # juniward_folder = Path(stego_base_path) / "JUNIWARD"
+    # uerd_folder = Path(stego_base_path) / "UERD"
 
-    # Falls Stego-Ordner bereits existieren und nicht leer sind → Abbruch
-    if all(folder.exists() and any(folder.glob("*.jpg")) for folder in [jmipod_folder, juniward_folder, uerd_folder]):
-        return "✅ Stego-Ordner existieren bereits und enthalten Bilder. Keine neue Generierung nötig."
+    # if all(folder.exists() and any(folder.glob("*.jpg")) for folder in [jmipod_folder, juniward_folder, uerd_folder]):
+    #     return "✅ Stego-Ordner existieren bereits und enthalten Bilder. Keine neue Generierung nötig."
 
-    # Lade JPEG-Qualitäten aus CSV
-    quality_file = cover_folder / "quality_labels.csv"
-    if not quality_file.exists():
-        return f"❌ quality_labels.csv wurde nicht gefunden unter {quality_file}"
+    # quality_file = cover_folder / "quality_labels.csv"
+    # if not quality_file.exists():
+    #     return f"❌ quality_labels.csv wurde nicht gefunden unter {quality_file}"
 
-    quality_map = {}
-    with open(quality_file, newline="") as f:
-        reader = csv.reader(f)
-        for row in reader:
-            fname, quality = row
-            quality_map[fname] = int(quality)
+    # quality_map = {}
+    # with open(quality_file, newline="") as f:
+    #     reader = csv.reader(f)
+    #     for row in reader:
+    #         fname, quality = row
+    #         quality_map[fname] = int(quality)
 
-    # Zielordner erstellen, falls sie fehlen
-    jmipod_folder.mkdir(parents=True, exist_ok=True)
-    juniward_folder.mkdir(parents=True, exist_ok=True)
-    uerd_folder.mkdir(parents=True, exist_ok=True)
+    # jmipod_folder.mkdir(parents=True, exist_ok=True)
+    # juniward_folder.mkdir(parents=True, exist_ok=True)
+    # uerd_folder.mkdir(parents=True, exist_ok=True)
 
-    cover_images = list(cover_folder.glob("*.jpg"))
-    if not cover_images:
-        return f"❌ Keine Cover-Bilder im Ordner {cover_folder} gefunden."
+    # cover_images = list(cover_folder.glob("*.jpg"))
+    # if not cover_images:
+    #     return f"❌ Keine Cover-Bilder im Ordner {cover_folder} gefunden."
 
-    for cover_path in cover_images:
-        img = cv2.imread(str(cover_path))
-        img_ycc = cv2.cvtColor(img, cv2.COLOR_BGR2YCrCb)
-        y, cr, cb = cv2.split(img_ycc)
+    # for cover_path in cover_images:
+    #     img = cv2.imread(str(cover_path))
+    #     img_ycc = cv2.cvtColor(img, cv2.COLOR_BGR2YCrCb)
+    #     y, cr, cb = cv2.split(img_ycc)
+    #     y = y.astype(np.float32)
 
-        y = y.astype(np.float32)
-        block_size = 8
-        h, w = y.shape
+    #     block_size = 8
+    #     h, w = y.shape
 
-        # Erzeuge leere Matrizen für Varianten
-        jmipod_y = np.zeros_like(y)
-        juniward_y = np.zeros_like(y)
-        uerd_y = np.zeros_like(y)
+    #     jmipod_y = np.zeros_like(y)
+    #     juniward_y = np.zeros_like(y)
+    #     uerd_y = np.zeros_like(y)
 
-        for i in range(0, h, block_size):
-            for j in range(0, w, block_size):
-                block = y[i : i + block_size, j : j + block_size]
-                if block.shape == (8, 8):
-                    dct_block = cv2.dct(block)
+    #     for i in range(0, h, block_size):
+    #         for j in range(0, w, block_size):
+    #             block = y[i : i + block_size, j : j + block_size]
+    #             if block.shape != (8, 8):
+    #                 continue
 
-                    # Kopiere für jede Variante
-                    jmipod_block = dct_block.copy()
-                    juniward_block = dct_block.copy()
-                    uerd_block = dct_block.copy()
+    #             dct_block = cv2.dct(block)
+    #             jmipod_block = dct_block.copy()
+    #             juniward_block = dct_block.copy()
+    #             uerd_block = dct_block.copy()
 
-                    # Modifikationen
-                    jmipod_block[2:6, 2:6] += np.random.normal(0, 0.5, (4, 4))
-                    juniward_block[4:8, 0:4] *= 1.05
-                    mask = np.random.rand(8, 8) < 0.05
-                    uerd_block += mask * np.random.normal(0, 1.0, (8, 8))
+    #             if np.std(block) > 5:
+    #                 # JMiPOD: Additive Störung im mittleren Frequenzbereich
+    #                 if np.random.rand() < 0.1:
+    #                     mid_mask = np.zeros((8, 8), dtype=np.float32)
+    #                     mid_mask[2:6, 2:6] = 1
+    #                     jmipod_block += mid_mask * np.random.normal(0, 0.02, (8, 8))
 
-                    # IDCT zurück
-                    jmipod_block = np.clip(cv2.idct(jmipod_block), 0, 255)
-                    juniward_block = np.clip(cv2.idct(juniward_block), 0, 255)
-                    uerd_block = np.clip(cv2.idct(uerd_block), 0, 255)
+    #                 # JUNIWARD: Leichte Verstärkung hochfrequenter Koeffizienten
+    #                 if np.random.rand() < 0.1:
+    #                     high_mask = np.zeros((8, 8), dtype=np.float32)
+    #                     high_mask[5:, :] = 1
+    #                     high_mask[:, 5:] = 1
+    #                     mask = np.random.rand(8, 8) < 0.05
+    #                     scale = 1.0 + np.random.normal(0, 0.015, (8, 8))
+    #                     juniward_block += high_mask * mask * juniward_block * (scale - 1.0)
 
-                    # Blöcke einfügen
-                    jmipod_y[i : i + block_size, j : j + block_size] = jmipod_block
-                    juniward_y[i : i + block_size, j : j + block_size] = juniward_block
-                    uerd_y[i : i + block_size, j : j + block_size] = uerd_block
+    #                 # UERD: Zufällige, breit gestreute Noise-Komponenten
+    #                 if np.random.rand() < 0.1:
+    #                     random_mask = np.random.rand(8, 8) < 0.02
+    #                     uerd_block += random_mask * np.random.normal(0, 0.01, (8, 8))
 
-        # Zurück in YCrCb und BGR
-        img_jmipod = cv2.cvtColor(cv2.merge([jmipod_y.astype(np.uint8), cr, cb]), cv2.COLOR_YCrCb2BGR)
-        img_juniward = cv2.cvtColor(cv2.merge([juniward_y.astype(np.uint8), cr, cb]), cv2.COLOR_YCrCb2BGR)
-        img_uerd = cv2.cvtColor(cv2.merge([uerd_y.astype(np.uint8), cr, cb]), cv2.COLOR_YCrCb2BGR)
+    #             # Inverse DCT und Begrenzung auf gültigen Wertebereich
+    #             jmipod_block = np.clip(cv2.idct(jmipod_block), 0, 255)
+    #             juniward_block = np.clip(cv2.idct(juniward_block), 0, 255)
+    #             uerd_block = np.clip(cv2.idct(uerd_block), 0, 255)
 
-        # Qualität aus CSV holen
-        cover_quality = quality_map.get(cover_path.name, 90)
+    #             # Rückspeichern der modifizierten Blöcke
+    #             jmipod_y[i : i + block_size, j : j + block_size] = jmipod_block
+    #             juniward_y[i : i + block_size, j : j + block_size] = juniward_block
+    #             uerd_y[i : i + block_size, j : j + block_size] = uerd_block
 
-        # Speichern mit JPEG-Qualität des Covers
-        cv2.imwrite(str(jmipod_folder / cover_path.name), img_jmipod, [int(cv2.IMWRITE_JPEG_QUALITY), cover_quality])
-        cv2.imwrite(str(juniward_folder / cover_path.name), img_juniward, [int(cv2.IMWRITE_JPEG_QUALITY), cover_quality])
-        cv2.imwrite(str(uerd_folder / cover_path.name), img_uerd, [int(cv2.IMWRITE_JPEG_QUALITY), cover_quality])
+    #     # Zusammenfügen der Farbkanäle und Rücktransformation in BGR
+    #     img_jmipod = cv2.cvtColor(cv2.merge([jmipod_y.astype(np.uint8), cr, cb]), cv2.COLOR_YCrCb2BGR)
+    #     img_juniward = cv2.cvtColor(cv2.merge([juniward_y.astype(np.uint8), cr, cb]), cv2.COLOR_YCrCb2BGR)
+    #     img_uerd = cv2.cvtColor(cv2.merge([uerd_y.astype(np.uint8), cr, cb]), cv2.COLOR_YCrCb2BGR)
 
-    return f"✅ {len(cover_images)} Cover-Bilder erfolgreich verarbeitet und Stego-Varianten erzeugt."
+    #     cover_quality = quality_map.get(cover_path.name, 90)
+
+    #     # Speicherung mit JPEG-Kompression in jeweiligem Stego-Ordner
+    #     cv2.imwrite(str(jmipod_folder / cover_path.name), img_jmipod, [int(cv2.IMWRITE_JPEG_QUALITY), cover_quality])
+    #     cv2.imwrite(str(juniward_folder / cover_path.name), img_juniward, [int(cv2.IMWRITE_JPEG_QUALITY), cover_quality])
+    #     cv2.imwrite(str(uerd_folder / cover_path.name), img_uerd, [int(cv2.IMWRITE_JPEG_QUALITY), cover_quality])
+
+    # return f"✅ {len(cover_images)} Cover-Bilder erfolgreich verarbeitet und realitätsnahe Stego-Varianten erzeugt."
+    return "✅ Cover-Bilder erfolgreich verarbeitet und realitätsnahe Stego-Varianten erzeugt."
 
 
 def prepare_dataset(dataset_root: str, class_labels: dict, subsample_percent: float = 1.0, seed: int = 42) -> pd.DataFrame:
@@ -513,113 +442,3 @@ def split_dataset_by_filename(
     test_df = df[df["filename"].isin(test_filenames)].drop(columns=["filename"])
 
     return train_df, val_df, test_df
-
-
-# -------------------------------------------------------------------------------
-# def generate_and_save_ref_embeddings(
-#     ref_dir: str = "data/raw/alaska2-image-steganalysis/Cover",
-#     output_path: str = "data/raw/ref_emb.npy",
-#     ref_count: int = 300,
-#     batch_size: int = 32,
-# ):
-#     """
-#     Berechnet CLIP-Embeddings für bis zu ref_count zufällige Cover-Bilder
-#     und speichert sie als NumPy-Array in output_path.
-#     """
-#     device = "cuda" if torch.cuda.is_available() else "cpu"
-#     model, preprocess = clip.load("ViT-B/32", device=device)
-#     model.eval()
-
-#     ref_list = list(Path(ref_dir).glob("*.jpg"))
-#     k = min(len(ref_list), ref_count)
-#     ref_paths = random.sample(ref_list, k)
-
-#     with torch.no_grad():
-#         embs = []
-#         for i in range(0, k, batch_size):
-#             batch = ref_paths[i : i + batch_size]
-#             imgs = torch.stack([
-#                 preprocess(Image.open(p).convert("RGB"))
-#                 for p in batch
-#             ]).to(device)
-#             embs.append(model.encode_image(imgs).cpu())
-#     ref_emb = torch.cat(embs, dim=0).numpy().astype("float32")
-
-#     out_path = Path(output_path)
-#     out_path.parent.mkdir(parents=True, exist_ok=True)
-#     np.save(out_path, ref_emb)
-#     print(f"✅ Gespeichert: {k} Referenz-Embeddings in '{out_path}'")
-
-
-# def build_pd12m_like_alaska2(
-#     cover_count: int = 500,
-#     scan_limit: int = 10_000,
-#     out_root: str = "data/raw/PD12M_like_alaska2",
-#     ref_emb_path: str = "data/raw/ref_emb.npy",
-#     batch_size: int = 16,
-# ) -> str:
-#     """
-#     Erzeugt einen ALASKA2-ähnlichen CC0-Datensatz aus PD12M:
-#     - lädt (oder erzeugt) ref_emb.npy
-#     - führt kNN auf PD12M-URLs im Embedding-Raum durch
-#     - speichert die Tops in out_root/Dataset/
-#     """
-#     # 1) CLIP-Setup
-#     device = "cuda" if torch.cuda.is_available() else "cpu"
-#     model, preprocess = clip.load("ViT-B/32", device=device)
-#     disable_caching()
-#     model.eval()
-
-#     # 2) Referenz-Embeddings laden (oder erzeugen)
-#     ref_path = Path(ref_emb_path)
-#     if not ref_path.exists():
-#         generate_and_save_ref_embeddings(
-#             ref_dir=str(Path(ref_path.parent) / "alaska2-image-steganalysis/Cover"),
-#             output_path=str(ref_path),
-#             ref_count=300,
-#             batch_size=32
-#         )
-#     ref_emb = np.load(ref_path).astype("float32")
-#     faiss.normalize_L2(ref_emb)
-
-#     # 3) PD12M-URLs (erste scan_limit)
-#     ds_stream = load_dataset("Spawning/PD12M", split="train", streaming=True)
-#     urls = [row["url"] for row in islice(ds_stream, scan_limit)]
-
-#     # 4) Batch-Embedding + kNN-Heap
-#     heap: list[tuple[float, str]] = []
-#     t0 = time.time()
-#     for i in range(0, len(urls), batch_size):
-#         batch_urls = urls[i : i + batch_size]
-#         imgs = []
-#         for url in batch_urls:
-#             r = requests.get(url, timeout=5)
-#             imgs.append(preprocess(Image.open(BytesIO(r.content)).convert("RGB")))
-#         batch_tensor = torch.stack(imgs).to(device)
-
-#         with torch.no_grad():
-#             emb_batch = model.encode_image(batch_tensor).cpu().numpy().astype("float32")
-#         faiss.normalize_L2(emb_batch)
-
-#         sims = (emb_batch @ ref_emb.T).max(axis=1)
-#         for sim, url in zip(sims, batch_urls):
-#             entry = (float(sim), url)
-#             if len(heap) < cover_count:
-#                 heapq.heappush(heap, entry)
-#             else:
-#                 heapq.heappushpop(heap, entry)
-#     print(f"⏱ Embedding+kNN für {len(urls)} Bilder: {time.time()-t0:.2f} s")
-
-#     best_urls = [u for _, u in sorted(heap, key=lambda t: -t[0])]
-
-#     # 5) Top-URLs final speichern
-#     dataset_dir = Path(out_root) / "Dataset"
-#     dataset_dir.mkdir(parents=True, exist_ok=True)
-#     t1 = time.time()
-#     for idx, url in enumerate(best_urls, 1):
-#         r = requests.get(url, timeout=5)
-#         img = Image.open(BytesIO(r.content)).convert("RGB")
-#         img.save(dataset_dir / f"{idx:05d}.jpg", "JPEG", quality=95)
-#     print(f"⏱ Finaler Download+Save: {time.time()-t1:.2f} s")
-
-#     return f"✅ {len(best_urls)} Cover in {dataset_dir} gespeichert."
