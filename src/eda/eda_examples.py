@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import ipywidgets as widgets
+import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
 import pandas as pd
 from IPython.display import clear_output
@@ -86,23 +87,22 @@ def plot_image_grid(df: pd.DataFrame, dataset_name: str = "", rows: int = 4, col
 
 def plot_cover_stego_comparison(df: pd.DataFrame, dataset_name: str = "") -> widgets.VBox:
     """
-    Interaktives Widget zur Anzeige aller Varianten (Cover, JMiPOD, JUNIWARD, UERD) für ein gewähltes Motiv,
-    basierend auf durchnummeriertem Index, nicht Dateinamen.
+    Zeigt Cover + alle drei Stego-Varianten nebeneinander (1x4 Grid) für eine Bildgruppe.
 
     Args:
         df (pd.DataFrame): DataFrame mit 'path' und 'label_name'
         dataset_name (str): Optionaler Titel
 
     Returns:
-        VBox: Interaktives Bedienfeld mit Eingabe und Navigation
+        VBox: Interaktives Bedienfeld mit Navigation
     """
     df = df.copy()
     df["filename"] = df["path"].apply(lambda p: Path(p).name)
     df["base_name"] = df["filename"].str.extract(r"(\d+)\.jpg")
 
-    complete_groups = (df.groupby("base_name")["label_name"].nunique().loc[lambda g: g == 4].index.sort_values()).tolist()
+    LABELS = ["Cover", "JMiPOD", "JUNIWARD", "UERD"]
+    complete_groups = df.groupby("base_name")["label_name"].nunique().loc[lambda g: g == 4].index.sort_values().tolist()
 
-    # UI-Elemente
     idx_input = widgets.BoundedIntText(value=0, min=0, max=len(complete_groups) - 1, description="Index:")
     btn_prev = widgets.Button(description="←", layout=widgets.Layout(width="40px"))
     btn_next = widgets.Button(description="→", layout=widgets.Layout(width="40px"))
@@ -111,25 +111,31 @@ def plot_cover_stego_comparison(df: pd.DataFrame, dataset_name: str = "") -> wid
 
     def show(idx: int):
         base_id = complete_groups[idx]
-        rows = df[df["base_name"] == base_id].sort_values("label_name")
+        group = df[df["base_name"] == base_id]
+
         with out:
             clear_output(wait=True)
-            if len(rows) != 4:
+            if group["label_name"].nunique() < 4:
                 print(f"Inkomplette Bildgruppe: {base_id}")
                 return
 
-            fig, axes = plt.subplots(1, 4, figsize=(24, 6))
-            fig.suptitle(f"Vergleich – Gruppe #{idx} (Datei-ID: {base_id}) – {dataset_name}", fontsize=18)
+            paths = {lbl: group[group["label_name"] == lbl]["path"].iloc[0] for lbl in LABELS}
 
-            for ax, (_, row) in zip(axes, rows.iterrows()):
+            fig = plt.figure(figsize=(22, 6), constrained_layout=True)
+            spec = gridspec.GridSpec(ncols=4, nrows=1, figure=fig)
+            axes = [fig.add_subplot(spec[0, i]) for i in range(4)]
+
+            fig.suptitle(f"Vergleich – ID {base_id} – {dataset_name}", fontsize=16)
+
+            for ax, lbl in zip(axes, LABELS):
                 try:
-                    img = Image.open(row["path"])
+                    img = Image.open(paths[lbl]).convert("RGB")
                     ax.imshow(img)
-                    ax.set_title(row["label_name"])
+                    ax.set_title(lbl)
                 except Exception:
                     ax.text(0.5, 0.5, "Fehler", ha="center", va="center")
                 ax.axis("off")
-            plt.tight_layout()
+
             plt.show()
 
     def go_relative(delta: int):
@@ -140,6 +146,5 @@ def plot_cover_stego_comparison(df: pd.DataFrame, dataset_name: str = "") -> wid
     btn_next.on_click(lambda _: go_relative(1))
     idx_input.observe(lambda change: show(change["new"]), names="value")
 
-    # Initial
     show(0)
     return widgets.VBox([btn_row, out])

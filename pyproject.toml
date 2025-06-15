@@ -25,6 +25,7 @@ plotly = "^6.0.1"
 scipy = "^1.15.2"
 jpegio = "^0.2.8"
 opencv-python-headless = "^4.11.0.86"
+scikit-image = "^0.25.2"
 
 [tool.poetry.group.dev.dependencies]
 isort = "^6.0.1"

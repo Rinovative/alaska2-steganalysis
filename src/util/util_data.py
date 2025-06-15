@@ -280,7 +280,7 @@ def generate_stego_variants(
         # Masks: True = potentiell änder­bar
         nz_mask = y_coef != 0  # keine DC=0-Flips
         dc_mask = np.zeros_like(y_coef, dtype=bool)
-        dc_mask[0::8, 0::8] = True  # DC-Koeff. ausschließen
+        dc_mask[0::8, 0::8] = True  # DC-Koeff. ausschliessen
         ac_mask = nz_mask & ~dc_mask
 
         # Frequenzpositionen (u+v)-Matrix für einfache JUNIWARD-Gewichtung

@@ -55,8 +55,16 @@ Das Projekt umfasst:
    - Entweder über die Schaltfläche `Reopen in Container` unten rechts  
    - oder über `F1` → `Dev Containers: Reopen in Container`
 
-4. Nach erfolgreichem Containeraufbau kann das Notebook direkt in VS Code geöffnet werden:  
-   `ANN_Projekt_Rino_Albertin_Steganalyse.ipynb`
+4. Container schliessen
+   Nach dem ersten Build-Fenster:
+   -  Unten links auf das grüne Remote-Symbol klciken → `Close Remote Connection`
+
+5. Dev-Container erneut öffnen
+   -  Wieder F1 → `Dev Containers: Reopen in Container`
+
+6. Notebook starten
+   -  Öffne `ANN_Projekt_Rino_Albertin_Steganalyse.ipynb` in VS Code.  
+   
 </details>
 
 <details>
@@ -92,6 +100,7 @@ Das Projekt umfasst:
 5. Die in der Konsole ausgegebene URL kann verwendet werden, um über einen lokalen Browser auf das Notebook zuzugreifen.
 
 </details>
+
 ---
 
 ## 📂 Projektstruktur
@@ -124,6 +133,7 @@ Das Projekt umfasst:
 ├── README.md                             # Projektübersicht (diese Datei)
 └── requirements.txt                      # Alternativ für Pip / Binder / Colab
 ```
+</details>
 
 ---
 
