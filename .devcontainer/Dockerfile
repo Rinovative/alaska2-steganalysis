@@ -1,7 +1,7 @@
 # 1) Basis-Image
 FROM python:3.11-slim
 
-# 2) System-Tools & Libs (für jpegio)
+# 2) System-Tools & Libs (für jpegio etc.)
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
        build-essential \
