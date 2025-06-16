@@ -47,6 +47,7 @@ data/raw/*
 *.jpeg
 *.png
 !images/**
+safe
 
 # ================================
 # ⚙️ Umgebung / Pakete

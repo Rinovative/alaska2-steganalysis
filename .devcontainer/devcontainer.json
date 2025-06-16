@@ -4,6 +4,10 @@
         "dockerfile": "Dockerfile",
         "context": ".."
     },
+    "runArgs": [
+        "--gpus",
+        "all"
+    ],
     "workspaceFolder": "/app",
     "workspaceMount": "source=${localWorkspaceFolder},target=/app,type=bind",
     "mounts": [
