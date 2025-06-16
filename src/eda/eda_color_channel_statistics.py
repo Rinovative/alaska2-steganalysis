@@ -14,6 +14,51 @@ LABEL_ORDER = ["Cover", "JMiPOD", "JUNIWARD", "UERD"]
 PALETTE = sns.color_palette("colorblind", n_colors=4)
 LABEL_COLORS = dict(zip(LABEL_ORDER, PALETTE))
 
+def plot_pixel_histograms(df: pd.DataFrame, dataset_name: str = "", color_space: str = "YCbCr") -> plt.Figure:
+    """
+    Zeigt Histogramme der Pixelwerte in allen 3 Kanälen für jede Klasse (Raster: Klassenzeilen × Kanälspalten).
+
+    Args:
+        df (pd.DataFrame): Enthält 'path' und 'label_name'.
+        dataset_name (str): Für Titel.
+        color_space (str): "YCbCr" oder "RGB".
+
+    Returns:
+        plt.Figure: Visualisierung.
+    """
+    assert color_space in ["YCbCr", "RGB"], "Nur 'YCbCr' oder 'RGB' erlaubt."
+    channels = ["Y", "Cb", "Cr"] if color_space == "YCbCr" else ["R", "G", "B"]
+    fig, axes = plt.subplots(len(LABEL_ORDER), 3, figsize=(18, 2.8 * len(LABEL_ORDER)), sharex=True, sharey=False)
+
+    for row_idx, cls in enumerate(LABEL_ORDER):
+        subset = df[df["label_name"] == cls].sample(n=min(50, len(df)), random_state=42)
+        all_pixels = {ch: [] for ch in range(3)}
+
+        for path in subset["path"]:
+            try:
+                img = Image.open(path).convert(color_space)
+                arr = np.array(img)
+                for ch in range(3):
+                    all_pixels[ch].extend(arr[:, :, ch].flatten())
+            except Exception:
+                continue
+
+        for ch in range(3):
+            ax = axes[row_idx, ch]
+            ax.hist(all_pixels[ch], bins=50, color=LABEL_COLORS[cls], alpha=0.85)
+            if row_idx == 0:
+                ax.set_title(f"Kanal {channels[ch]}", fontsize=11)
+            if ch == 0:
+                ax.set_ylabel(cls, fontsize=11)
+            if row_idx == len(LABEL_ORDER) - 1:
+                ax.set_xlabel("Pixelwert")
+            ax.set_xlim(0, 255)
+            ax.grid(True, linestyle="--", alpha=0.5)
+
+    fig.suptitle(f"Histogramm der Pixelwerte – {color_space} – {dataset_name}", fontsize=15)
+    fig.tight_layout()
+    fig.subplots_adjust(top=0.92)
+    return fig
 
 def plot_image_mean_distribution(df: pd.DataFrame, dataset_name: str = "") -> plt.Figure:
     """

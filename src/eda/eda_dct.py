@@ -184,130 +184,6 @@ def plot_flip_direction_overview(df: pd.DataFrame) -> plt.Figure:
 
     return fig
 
-
-def plot_cover_stego_flipmask(df: pd.DataFrame, dataset_name: str = "", channel: int = 0) -> widgets.VBox:
-    """
-    Zeigt für ein Motiv vier Bilder nebeneinander:
-    - Cover (Originalbild)
-    - JMiPOD, JUNIWARD, UERD mit Flipmasken (Stego - Cover)
-
-    Umschaltbar zwischen:
-    ▸ "overlay": Punkte & Maske
-    ▸ "heatmap": visuelle Flipdichte (ähnlich GradCAM)
-
-    Args:
-        df (pd.DataFrame): DataFrame mit 'path' und 'label_name'
-        dataset_name (str): Optionaler Titel
-        channel (int): JPEG-Komponente (0 = Y, 1 = Cb, 2 = Cr)
-
-    Returns:
-        VBox: Interaktive Darstellung
-    """
-    df = df.copy()
-    df["filename"] = df["path"].apply(lambda p: Path(p).name)
-    df["base_name"] = df["filename"].str.extract(r"(\d+)\.jpg")
-
-    LABELS = ["Cover", "JMiPOD", "JUNIWARD", "UERD"]
-    component_name = ["Y", "Cb", "Cr"][channel]
-
-    complete_groups = df.groupby("base_name")["label_name"].nunique().loc[lambda g: g == 4].index.sort_values().tolist()
-
-    idx_input = widgets.BoundedIntText(value=0, min=0, max=len(complete_groups) - 1, description="Index:")
-    btn_prev = widgets.Button(description="←", layout=widgets.Layout(width="40px"))
-    btn_next = widgets.Button(description="→", layout=widgets.Layout(width="40px"))
-    btn_row = widgets.HBox([idx_input, btn_prev, btn_next])
-
-    mode_selector = widgets.Dropdown(options=["overlay", "heatmap"], value="overlay", description="Modus:")
-
-    out = widgets.Output()
-
-    def show(idx: int, mode: str):
-        base_id = complete_groups[idx]
-        group = df[df["base_name"] == base_id]
-
-        with out:
-            clear_output(wait=True)
-            if group["label_name"].nunique() < 4:
-                print(f"Inkomplette Bildgruppe: {base_id}")
-                return
-
-            paths = {lbl: group[group["label_name"] == lbl]["path"].iloc[0] for lbl in LABELS}
-            jpeg_cover = jio.read(str(paths["Cover"]))
-            coef_cover = jpeg_cover.coef_arrays[channel].astype(np.int32)
-
-            cover_img = Image.open(paths["Cover"]).convert("RGB")
-            cover_img = cover_img.resize(coef_cover.shape[::-1])
-
-            fig = plt.figure(figsize=(22, 6), constrained_layout=True)
-            spec = gridspec.GridSpec(ncols=5, nrows=1, figure=fig, width_ratios=[1, 1, 1, 1, 0.03])
-
-            axes = [fig.add_subplot(spec[0, i]) for i in range(4)]
-            cax = fig.add_subplot(spec[0, 4])
-
-            fig.suptitle(f"AC-Flip-Masken – ID {base_id} – Kanal: {component_name} – {dataset_name} – Modus: {mode}", fontsize=16)
-
-            axes[0].imshow(cover_img)
-            axes[0].set_title("Cover")
-            axes[0].axis("off")
-
-            for ax, lbl in zip(axes[1:], LABELS[1:]):
-                jpeg_stego = jio.read(str(paths[lbl]))
-                coef_stego = jpeg_stego.coef_arrays[channel].astype(np.int32)
-
-                mask = np.ones_like(coef_cover, dtype=bool)
-                mask[0::8, 0::8] = False
-                delta = (coef_stego - coef_cover) * mask
-
-                ax.imshow(cover_img)
-
-                if mode == "overlay":
-                    flipmask = (delta != 0).astype(np.uint8)
-                    pos_y, pos_x = np.where(delta == 1)
-                    neg_y, neg_x = np.where(delta == -1)
-
-                    ax.imshow(flipmask, cmap="Greys", alpha=0.2)
-                    ax.scatter(pos_x, pos_y, s=1.0, c="red", alpha=0.5)
-                    ax.scatter(neg_x, neg_y, s=1.0, c="blue", alpha=0.5)
-
-                elif mode == "heatmap":
-                    # Weichzeichnen wie GradCAM
-                    heat = gaussian_filter(np.abs(delta).astype(float), sigma=5)
-
-                    # Kontrast betonen (optional)
-                    heat = np.power(heat, 1.8)
-
-                    # Normieren pro Bild (verhindert flache Heatmap)
-                    heat_norm = (heat - heat.min()) / (heat.max() - heat.min() + 1e-6)
-
-                    # Darstellung wie Grad-CAM
-                    ax.imshow(cover_img)
-                    ax.imshow(heat_norm, cmap="magma", alpha=0.6)
-
-                ax.set_title(lbl)
-                ax.axis("off")
-
-            # Farblegende (nur visuell – nicht dynamisch)
-            norm = Normalize(vmin=-2, vmax=2)
-            sm = ScalarMappable(norm=norm, cmap="seismic")
-            sm.set_array([])
-            fig.colorbar(sm, cax=cax, label=f"Δ (AC, {component_name})")
-
-            plt.show()
-
-    def go_relative(delta: int):
-        new_idx = max(0, min(len(complete_groups) - 1, idx_input.value + delta))
-        idx_input.value = new_idx
-
-    # Event-Verbindungen
-    btn_prev.on_click(lambda _: go_relative(-1))
-    btn_next.on_click(lambda _: go_relative(1))
-    idx_input.observe(lambda change: show(change["new"], mode_selector.value), names="value")
-    mode_selector.observe(lambda change: show(idx_input.value, change["new"]), names="value")
-
-    show(0, mode_selector.value)
-    return widgets.VBox([widgets.HBox([btn_row, mode_selector]), out])
-
-
 def plot_flip_position_heatmap(df: pd.DataFrame, channel: int = 0, dataset_name: str = "") -> plt.Figure:
     """
     Zeigt die Häufigkeit von AC-Flips nach DCT-Position (8×8-Index) pro Stego-Verfahren
@@ -356,6 +232,153 @@ def plot_flip_position_heatmap(df: pd.DataFrame, channel: int = 0, dataset_name:
         ax.set_xlabel("DCT-x (u)")
         ax.set_ylabel("DCT-y (v)")
 
-    fig.suptitle(f"4-6: Verteilung der AC-Flips nach DCT-Position – Kanal: {['Y', 'Cb', 'Cr'][channel]} – {dataset_name}", fontsize=14)
+    fig.suptitle(f"Verteilung der AC-Flips nach DCT-Position – Kanal: {['Y', 'Cb', 'Cr'][channel]} – {dataset_name}", fontsize=14)
     plt.tight_layout()
     return fig
+
+
+def plot_cover_stego_flipmask(
+    df: pd.DataFrame, dataset_name: str = "", init_channel: int = 0
+) -> widgets.VBox:
+    """
+    Zeigt für ein Motiv vier Bilder nebeneinander:
+    - Cover
+    - JMiPOD, JUNIWARD, UERD mit Flipmasken (Stego – Cover)
+
+    Interaktiv umschaltbar zwischen
+    ▸ drei JPEG-Kanälen  (Y, Cb, Cr)
+    ▸ zwei Darstellungsmodi ("overlay", "heatmap")
+    """
+    df = df.copy()
+    df["filename"]  = df["path"].apply(lambda p: Path(p).name)
+    df["base_name"] = df["filename"].str.extract(r"(\d+)\.jpg")
+
+    LABELS = ["Cover", "JMiPOD", "JUNIWARD", "UERD"]
+    channel_map = {"Y": 0, "Cb": 1, "Cr": 2}
+
+    # ­— Widgets ---------------------------------------------------------
+    channel_selector = widgets.Dropdown(
+        options=list(channel_map.keys()),
+        value=list(channel_map.keys())[init_channel],
+        description="Kanal:",
+        layout=widgets.Layout(width="140px"),
+    )
+    mode_selector = widgets.Dropdown(
+        options=["heatmap", "overlay"],
+        value="heatmap",
+        description="Modus:",
+        layout=widgets.Layout(width="175px"),
+    )
+
+    complete_groups = (
+        df.groupby("base_name")["label_name"]
+        .nunique()
+        .loc[lambda g: g == 4]
+        .index.sort_values()
+        .tolist()
+    )
+
+    idx_input = widgets.BoundedIntText(
+        value=0, min=0, max=len(complete_groups) - 1, description="Index:"
+    )
+    btn_prev = widgets.Button(description="←", layout=widgets.Layout(width="40px"))
+    btn_next = widgets.Button(description="→", layout=widgets.Layout(width="40px"))
+    btn_row = widgets.HBox([idx_input, btn_prev, btn_next])
+    out = widgets.Output()
+
+    # ­— Kernfunktion ----------------------------------------------------
+    def show(idx: int, channel_key: str, mode: str):
+        base_id = complete_groups[idx]
+        group = df[df["base_name"] == base_id]
+
+        with out:
+            clear_output(wait=True)
+            if group["label_name"].nunique() < 4:
+                print(f"Inkomplette Bildgruppe: {base_id}")
+                return
+
+            ch = channel_map[channel_key]
+            paths = {lbl: group[group["label_name"] == lbl]["path"].iloc[0] for lbl in LABELS}
+            jpeg_cover = jio.read(str(paths["Cover"]))
+            coef_cover = jpeg_cover.coef_arrays[ch].astype(np.int32)
+
+            cover_img = Image.open(paths["Cover"]).convert("RGB")
+            cover_img = cover_img.resize(coef_cover.shape[::-1])
+
+            fig = plt.figure(figsize=(22, 6), constrained_layout=True)
+            spec = gridspec.GridSpec(
+                ncols=5, nrows=1, figure=fig, width_ratios=[1, 1, 1, 1, 0.03]
+            )
+            axes = [fig.add_subplot(spec[0, i]) for i in range(4)]
+            cax = fig.add_subplot(spec[0, 4])
+
+            fig.suptitle(
+                f"AC-Flip-Masken – ID {base_id} – Kanal: {channel_key} – "
+                f"{dataset_name} – Modus: {mode}",
+                fontsize=16,
+            )
+
+            # Cover-Bild
+            axes[0].imshow(cover_img)
+            axes[0].set_title("Cover")
+            axes[0].axis("off")
+
+            # Stego-Varianten
+            for ax, lbl in zip(axes[1:], LABELS[1:]):
+                jpeg_stego = jio.read(str(paths[lbl]))
+                coef_stego = jpeg_stego.coef_arrays[ch].astype(np.int32)
+
+                # AC-Koeffizienten-Differenz (DC ausschliessen)
+                mask = np.ones_like(coef_cover, dtype=bool)
+                mask[0::8, 0::8] = False
+                delta = (coef_stego - coef_cover) * mask
+
+                ax.imshow(cover_img)
+
+                if mode == "overlay":
+                    flipmask = (delta != 0).astype(np.uint8)
+                    pos_y, pos_x = np.where(delta == 1)
+                    neg_y, neg_x = np.where(delta == -1)
+
+                    ax.imshow(flipmask, cmap="Greys", alpha=0.2)
+                    ax.scatter(pos_x, pos_y, s=1.0, c="red",  alpha=0.5)
+                    ax.scatter(neg_x, neg_y, s=1.0, c="blue", alpha=0.5)
+
+                elif mode == "heatmap":
+                    heat = gaussian_filter(np.abs(delta).astype(float), sigma=5)
+                    heat = np.power(heat, 1.8)                       # Kontrast
+                    heat_norm = (heat - heat.min()) / (heat.max() - heat.min() + 1e-6)
+                    ax.imshow(cover_img)
+                    ax.imshow(heat_norm, cmap="magma", alpha=0.6)
+
+                ax.set_title(lbl)
+                ax.axis("off")
+
+            # Farblegende
+            norm = Normalize(vmin=-2, vmax=2)
+            sm = ScalarMappable(norm=norm, cmap="seismic")
+            sm.set_array([])
+            fig.colorbar(sm, cax=cax, label=f"Δ (AC, {channel_key})")
+
+            plt.show()
+
+    # ­— Navigation-Logik -----------------------------------------------
+    def go_relative(delta: int):
+        idx_input.value = max(0, min(len(complete_groups) - 1, idx_input.value + delta))
+
+    btn_prev.on_click(lambda _: go_relative(-1))
+    btn_next.on_click(lambda _: go_relative(1))
+
+    # Widget-Callbacks
+    def refresh(*_):
+        show(idx_input.value, channel_selector.value, mode_selector.value)
+
+    idx_input.observe(lambda change: refresh(), names="value")
+    channel_selector.observe(lambda change: refresh(), names="value")
+    mode_selector.observe(lambda change: refresh(), names="value")
+
+    # Erstes Rendering
+    show(0, channel_selector.value, mode_selector.value)
+
+    controls = widgets.HBox([btn_row, channel_selector, mode_selector])
+    return widgets.VBox([controls, out])

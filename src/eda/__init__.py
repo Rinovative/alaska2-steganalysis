@@ -1,5 +1,6 @@
 # flake8: noqa
 from .eda_color_channel_statistics import (
+    plot_pixel_histograms,
     plot_channel_correlation,
     plot_image_mean_distribution,
     plot_kde_and_boxplot,
@@ -29,6 +30,7 @@ __all__ = [
     "plot_image_grid",
     "plot_cover_stego_comparison",
     # statistics
+    "plot_pixel_histograms",
     "plot_image_mean_distribution",
     "plot_kde_and_boxplot",
     "plot_channel_correlation",
