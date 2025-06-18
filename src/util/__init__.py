@@ -6,10 +6,11 @@ from .util_cache import (
     save_object,
 )
 from .util_data import (
+    add_jpeg_metadata,
+    build_file_index,
     build_pd12m_like_reference,
     download_synthetic_PD12M,
     generate_stego_variants,
-    prepare_dataset,
     split_dataset_by_filename,
 )
 from .util_nb import (
@@ -23,7 +24,8 @@ __all__ = [
     "download_synthetic_PD12M",
     "build_pd12m_like_reference",
     "generate_stego_variants",
-    "prepare_dataset",
+    "build_file_index",
+    "add_jpeg_metadata",
     "split_dataset_by_filename",
     # notebook helpers
     "make_dropdown_section",

@@ -6,7 +6,9 @@
     },
     "runArgs": [
         "--gpus",
-        "all"
+        "all",
+        "--ipc",
+        "host"
     ],
     "workspaceFolder": "/app",
     "workspaceMount": "source=${localWorkspaceFolder},target=/app,type=bind",

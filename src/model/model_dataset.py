@@ -1,10 +1,45 @@
-from pathlib import Path
-import torch
-from torch.utils.data import Dataset
-from torchvision import transforms
-import numpy as np
 import jpegio as jio
+import numpy as np
+import torch
 from PIL import Image
+from torch.utils.data import Dataset
+
+
+class YChannelDataset(Dataset):
+    """
+    Dataset für Steganalyse-Modelle, die nur den Y-Kanal (Luminanz) aus
+    JPEG-Bildern nutzen.
+
+    Gibt (Tensor, Label) zurück, wobei der Tensor die Form [1, H, W] hat.
+
+    Args:
+        dataframe (pd.DataFrame): Muss eine 'path'-Spalte und eine Labelspalte enthalten.
+        transform (callable, optional): Optionaler Transform auf den Y-Kanal
+        target_column (str): Spaltenname der Zielvariable (z. B. "label").
+    """
+
+    def __init__(self, dataframe, transform=None, target_column: str = "label"):
+        self.df = dataframe.reset_index(drop=True)
+        self.transform = transform
+        self.target_column = target_column
+
+        dtype_kind = self.df[self.target_column].dtype.kind
+        if dtype_kind == "f":  # float → binär
+            self.label_dtype = torch.float32
+        elif dtype_kind in {"i", "u"}:  # int oder uint → multiclass
+            self.label_dtype = torch.long
+        else:
+            raise ValueError(f"Unbekannter Datentyp für Labels: {self.df[self.target_column].dtype}")
+
+    def __len__(self) -> int:
+        return len(self.df)
+
+    def __getitem__(self, idx: int) -> tuple[torch.Tensor, torch.Tensor]:
+        row = self.df.iloc[idx]
+        y_image = Image.open(row["path"]).convert("YCbCr").split()[0]
+        y_tensor = self.transform(y_image)
+        label = torch.tensor(row[self.target_column], dtype=self.label_dtype)
+        return y_tensor, label
 
 
 class YCbCrImageDataset(Dataset):
@@ -22,17 +57,20 @@ class YCbCrImageDataset(Dataset):
         self.df = dataframe.reset_index(drop=True)
         self.transform = transform
         self.target_column = target_column
+        dtype_kind = self.df[self.target_column].dtype.kind
+        self.label_dtype = torch.float32 if dtype_kind == "f" else torch.long
 
-    def __len__(self) -> int:
+    def __len__(self):
         return len(self.df)
 
-    def __getitem__(self, idx: int) -> tuple[torch.Tensor, int]:
+    def __getitem__(self, idx):
         row = self.df.iloc[idx]
         image = Image.open(row["path"]).convert("YCbCr")
-        if self.transform is not None:
+        if self.transform:
             image = self.transform(image)
-        label = int(row[self.target_column])
+        label = torch.tensor(row[self.target_column], dtype=self.label_dtype)
         return image, label
+
 
 class DCTCoefficientDataset(Dataset):
     """
@@ -51,20 +89,22 @@ class DCTCoefficientDataset(Dataset):
         self.channel = channel
         self.transform = transform
         self.target_column = target_column
+        dtype_kind = self.df[self.target_column].dtype.kind
+        self.label_dtype = torch.float32 if dtype_kind == "f" else torch.long
 
-    def __len__(self) -> int:
+    def __len__(self):
         return len(self.df)
 
-    def __getitem__(self, idx: int) -> tuple[torch.Tensor, int]:
+    def __getitem__(self, idx):
         row = self.df.iloc[idx]
         coef_array = jio.read(str(row["path"])).coef_arrays[self.channel].astype(np.float32)
-        coef_tensor = torch.from_numpy(coef_array).unsqueeze(0)  # [1, H, W]
-        if self.transform is not None:
+        coef_tensor = torch.from_numpy(coef_array).unsqueeze(0)
+        if self.transform:
             coef_tensor = self.transform(coef_tensor)
-        label = int(row[self.target_column])
+        label = torch.tensor(row[self.target_column], dtype=self.label_dtype)
         return coef_tensor, label
 
-    
+
 class FusionDataset2(Dataset):
     """
     Dataset für Modelle mit kombiniertem Input:
@@ -82,25 +122,22 @@ class FusionDataset2(Dataset):
         self.transform = transform
         self.channel = 0
         self.target_column = target_column
+        dtype_kind = self.df[self.target_column].dtype.kind
+        self.label_dtype = torch.float32 if dtype_kind == "f" else torch.long
 
-    def __len__(self) -> int:
+    def __len__(self):
         return len(self.df)
 
-    def __getitem__(self, idx: int) -> tuple[tuple[torch.Tensor, torch.Tensor], int]:
+    def __getitem__(self, idx):
         row = self.df.iloc[idx]
-
-        # 1) Y-Kanal extrahieren
-        y_image = Image.open(row["path"]).convert("YCbCr").split()[0]  # Nur Y-Kanal (PIL Image)
-        if self.transform is not None:
-            y_image = self.transform(y_image)  # [1, H, W] oder [3, H, W], je nach Transform
-
-        # 2) DCT-Koeffizienten laden
+        y_image = Image.open(row["path"]).convert("YCbCr").split()[0]
+        if self.transform:
+            y_image = self.transform(y_image)
         coef_array = jio.read(str(row["path"])).coef_arrays[self.channel].astype(np.float32)
-        dct_tensor = torch.from_numpy(coef_array).unsqueeze(0)  # [1, H, W]
-
-        label = int(row[self.target_column])
+        dct_tensor = torch.from_numpy(coef_array).unsqueeze(0)
+        label = torch.tensor(row[self.target_column], dtype=self.label_dtype)
         return (y_image, dct_tensor), label
-    
+
 
 class FusionDataset4(Dataset):
     """
@@ -120,25 +157,22 @@ class FusionDataset4(Dataset):
         self.df = dataframe.reset_index(drop=True)
         self.transform = transform
         self.target_column = target_column
+        dtype_kind = self.df[self.target_column].dtype.kind
+        self.label_dtype = torch.float32 if dtype_kind == "f" else torch.long
 
-    def __len__(self) -> int:
+    def __len__(self):
         return len(self.df)
 
-    def __getitem__(self, idx: int) -> tuple[tuple[torch.Tensor, torch.Tensor], int]:
+    def __getitem__(self, idx):
         row = self.df.iloc[idx]
         path = row["path"]
-
-        # Bildraum
         image = Image.open(path).convert("YCbCr")
-        if self.transform is not None:
-            image = self.transform(image)  # [3, H, W]
-
-        # DCT-Y (AC only)
+        if self.transform:
+            image = self.transform(image)
         dct_y = jio.read(str(path)).coef_arrays[0].astype(np.float32)
         dct_y[::8, ::8] = 0
-        dct_tensor = torch.from_numpy(dct_y).unsqueeze(0)  # [1, H, W]
-
-        label = int(row[self.target_column])
+        dct_tensor = torch.from_numpy(dct_y).unsqueeze(0)
+        label = torch.tensor(row[self.target_column], dtype=self.label_dtype)
         return (image, dct_tensor), label
 
 
@@ -160,32 +194,29 @@ class FusionDataset6(Dataset):
         self.df = dataframe.reset_index(drop=True)
         self.transform = transform
         self.target_column = target_column
+        dtype_kind = self.df[self.target_column].dtype.kind
+        self.label_dtype = torch.float32 if dtype_kind == "f" else torch.long
 
-    def __len__(self) -> int:
+    def __len__(self):
         return len(self.df)
 
     @staticmethod
     def _load_ac_tensor(jpeg_path: str, channel: int) -> torch.Tensor:
         coef = jio.read(jpeg_path).coef_arrays[channel].astype(np.float32)
-        coef[::8, ::8] = 0  # DC-Koeffizienten nullen
+        coef[::8, ::8] = 0
         mu, std = coef.mean(), coef.std() + 1e-8
-        coef = (coef - mu) / std  # z-Score-Normierung
-        return torch.from_numpy(coef).unsqueeze(0)  # [1, H, W]
+        coef = (coef - mu) / std
+        return torch.from_numpy(coef).unsqueeze(0)
 
-    def __getitem__(self, idx: int) -> tuple[tuple[torch.Tensor, torch.Tensor], int]:
+    def __getitem__(self, idx):
         row = self.df.iloc[idx]
         path = row["path"]
-
-        # 1) YCbCr-Bild
         image = Image.open(path).convert("YCbCr")
-        if self.transform is not None:
-            image = self.transform(image)  # [3, H, W]
-
-        # 2) DCT-Kanäle (Y, Cb, Cr)
-        dct_y  = self._load_ac_tensor(path, channel=0)
-        dct_cb = self._load_ac_tensor(path, channel=1)
-        dct_cr = self._load_ac_tensor(path, channel=2)
-        dct_tensor = torch.cat([dct_y, dct_cb, dct_cr], dim=0)  # [3, H, W]
-
-        label = int(row[self.target_column])
+        if self.transform:
+            image = self.transform(image)
+        dct_y = self._load_ac_tensor(path, 0)
+        dct_cb = self._load_ac_tensor(path, 1)
+        dct_cr = self._load_ac_tensor(path, 2)
+        dct_tensor = torch.cat([dct_y, dct_cb, dct_cr], dim=0)
+        label = torch.tensor(row[self.target_column], dtype=self.label_dtype)
         return (image, dct_tensor), label

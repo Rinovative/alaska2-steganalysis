@@ -14,6 +14,7 @@ LABEL_ORDER = ["Cover", "JMiPOD", "JUNIWARD", "UERD"]
 PALETTE = sns.color_palette("colorblind", n_colors=4)
 LABEL_COLORS = dict(zip(LABEL_ORDER, PALETTE))
 
+
 def plot_pixel_histograms(df: pd.DataFrame, dataset_name: str = "", color_space: str = "YCbCr") -> plt.Figure:
     """
     Zeigt Histogramme der Pixelwerte in allen 3 Kanälen für jede Klasse (Raster: Klassenzeilen × Kanälspalten).
@@ -59,6 +60,7 @@ def plot_pixel_histograms(df: pd.DataFrame, dataset_name: str = "", color_space:
     fig.tight_layout()
     fig.subplots_adjust(top=0.92)
     return fig
+
 
 def plot_image_mean_distribution(df: pd.DataFrame, dataset_name: str = "") -> plt.Figure:
     """

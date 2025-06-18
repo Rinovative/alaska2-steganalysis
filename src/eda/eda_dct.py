@@ -184,6 +184,7 @@ def plot_flip_direction_overview(df: pd.DataFrame) -> plt.Figure:
 
     return fig
 
+
 def plot_flip_position_heatmap(df: pd.DataFrame, channel: int = 0, dataset_name: str = "") -> plt.Figure:
     """
     Zeigt die Häufigkeit von AC-Flips nach DCT-Position (8×8-Index) pro Stego-Verfahren
@@ -237,9 +238,7 @@ def plot_flip_position_heatmap(df: pd.DataFrame, channel: int = 0, dataset_name:
     return fig
 
 
-def plot_cover_stego_flipmask(
-    df: pd.DataFrame, dataset_name: str = "", init_channel: int = 0
-) -> widgets.VBox:
+def plot_cover_stego_flipmask(df: pd.DataFrame, dataset_name: str = "", init_channel: int = 0) -> widgets.VBox:
     """
     Zeigt für ein Motiv vier Bilder nebeneinander:
     - Cover
@@ -250,7 +249,7 @@ def plot_cover_stego_flipmask(
     ▸ zwei Darstellungsmodi ("overlay", "heatmap")
     """
     df = df.copy()
-    df["filename"]  = df["path"].apply(lambda p: Path(p).name)
+    df["filename"] = df["path"].apply(lambda p: Path(p).name)
     df["base_name"] = df["filename"].str.extract(r"(\d+)\.jpg")
 
     LABELS = ["Cover", "JMiPOD", "JUNIWARD", "UERD"]
@@ -270,17 +269,9 @@ def plot_cover_stego_flipmask(
         layout=widgets.Layout(width="175px"),
     )
 
-    complete_groups = (
-        df.groupby("base_name")["label_name"]
-        .nunique()
-        .loc[lambda g: g == 4]
-        .index.sort_values()
-        .tolist()
-    )
+    complete_groups = df.groupby("base_name")["label_name"].nunique().loc[lambda g: g == 4].index.sort_values().tolist()
 
-    idx_input = widgets.BoundedIntText(
-        value=0, min=0, max=len(complete_groups) - 1, description="Index:"
-    )
+    idx_input = widgets.BoundedIntText(value=0, min=0, max=len(complete_groups) - 1, description="Index:")
     btn_prev = widgets.Button(description="←", layout=widgets.Layout(width="40px"))
     btn_next = widgets.Button(description="→", layout=widgets.Layout(width="40px"))
     btn_row = widgets.HBox([idx_input, btn_prev, btn_next])
@@ -306,15 +297,12 @@ def plot_cover_stego_flipmask(
             cover_img = cover_img.resize(coef_cover.shape[::-1])
 
             fig = plt.figure(figsize=(22, 6), constrained_layout=True)
-            spec = gridspec.GridSpec(
-                ncols=5, nrows=1, figure=fig, width_ratios=[1, 1, 1, 1, 0.03]
-            )
+            spec = gridspec.GridSpec(ncols=5, nrows=1, figure=fig, width_ratios=[1, 1, 1, 1, 0.03])
             axes = [fig.add_subplot(spec[0, i]) for i in range(4)]
             cax = fig.add_subplot(spec[0, 4])
 
             fig.suptitle(
-                f"AC-Flip-Masken – ID {base_id} – Kanal: {channel_key} – "
-                f"{dataset_name} – Modus: {mode}",
+                f"AC-Flip-Masken – ID {base_id} – Kanal: {channel_key} – " f"{dataset_name} – Modus: {mode}",
                 fontsize=16,
             )
 
@@ -341,12 +329,12 @@ def plot_cover_stego_flipmask(
                     neg_y, neg_x = np.where(delta == -1)
 
                     ax.imshow(flipmask, cmap="Greys", alpha=0.2)
-                    ax.scatter(pos_x, pos_y, s=1.0, c="red",  alpha=0.5)
+                    ax.scatter(pos_x, pos_y, s=1.0, c="red", alpha=0.5)
                     ax.scatter(neg_x, neg_y, s=1.0, c="blue", alpha=0.5)
 
                 elif mode == "heatmap":
                     heat = gaussian_filter(np.abs(delta).astype(float), sigma=5)
-                    heat = np.power(heat, 1.8)                       # Kontrast
+                    heat = np.power(heat, 1.8)  # Kontrast
                     heat_norm = (heat - heat.min()) / (heat.max() - heat.min() + 1e-6)
                     ax.imshow(cover_img)
                     ax.imshow(heat_norm, cmap="magma", alpha=0.6)
