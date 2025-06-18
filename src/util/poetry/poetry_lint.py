@@ -6,7 +6,7 @@ import sys
 
 def main():
     cmds = [
-        ["isort", ".", "--profile", "black", "--skip", "data", "--skip", ".venv"],
+        ["isort", ".", "--profile", "black", "--skip", "data", "--skip", ".venv", "--skip", "safe"],
         ["black", "src", "--line-length", "150"],
         [
             "flake8",

@@ -10,6 +10,7 @@ from concurrent.futures import ThreadPoolExecutor
 from io import BytesIO
 from itertools import islice
 from pathlib import Path
+from typing import Dict, Union
 
 # Third-party libraries
 import clip
@@ -206,215 +207,195 @@ def build_pd12m_like_reference(
     return f"✅ {len(best_urls)} Cover in '{dataset_dir}' gespeichert."
 
 
-def _pick_payload_indices(mask: np.ndarray, payload_rate: float, rng: np.random.Generator) -> np.ndarray:
-    """
-    Hilfsfunktion: wähle zufällig Positionen aus `mask` (True-Elements),
-    so dass ungefähr `payload_rate × mask.sum()` Koef­fi­zienten modifiziert werden.
-    """
-    candidates = np.column_stack(np.where(mask))
-    n_bits = int(np.round(payload_rate * len(candidates)))
-    if n_bits == 0:
-        return np.empty((0, 2), dtype=int)
-    sel = rng.choice(len(candidates), n_bits, replace=False)
-    return candidates[sel]
+def _save_valid_and_inject_dct(in_path: Path, out_path: Path, Y_mod: np.ndarray, Cb, Cr, qtables) -> None:
+    img = Image.open(in_path)
+    img.save(out_path, format="JPEG", qtables=qtables, quality="keep", subsampling="keep")
+    jpeg = jio.read(str(out_path))
+    jpeg.coef_arrays = [Y_mod.astype(np.int16), Cb, Cr]
+    jio.write(jpeg, str(out_path))
 
 
 def generate_stego_variants(
-    cover_path: str | Path = "data/raw/PD12M/Cover",
-    stego_base_path: str | Path = "data/raw/PD12M",
-    payload_rates: dict[str, float] | None = None,
+    cover_path: Union[str, Path] = "data/raw/PD12M/Cover",
+    stego_base_path: Union[str, Path] = "data/raw/PD12M",
     seed: int = 42,
 ) -> str:
+    cover_path = Path(cover_path)
+    stego_base_path = Path(stego_base_path)
+
+    jmipod_folder = stego_base_path / "JMiPOD"
+    juniward_folder = stego_base_path / "JUNIWARD"
+    uerd_folder = stego_base_path / "UERD"
+    variant_folders = {
+        "JMiPOD": jmipod_folder,
+        "JUNIWARD": juniward_folder,
+        "UERD": uerd_folder,
+    }
+
+    for folder in variant_folders.values():
+        folder.mkdir(parents=True, exist_ok=True)
+
+    files = sorted(cover_path.glob("*.jpg"))
+    if not files:
+        return f"❌ Keine Bilder in {cover_path}"
+
+    if all(folder.exists() and any(folder.glob("*.jpg")) for folder in variant_folders.values()):
+        return "✅ Stego-Ordner existieren bereits und enthalten Bilder. Keine neue Generierung nötig."
+
+    for i, path in enumerate(tqdm(files, desc="Erzeuge Stego-Varianten")):
+        rng = np.random.default_rng(seed + i)
+        jpeg = jio.read(str(path))
+        qtables = jpeg.quant_tables
+        Y, Cb, Cr = jpeg.coef_arrays
+
+        h, w = Y.shape
+        ac_mask = np.ones_like(Y, dtype=bool)
+        ac_mask[0::8, 0::8] = False
+        nonzero_ac = (Y != 0) & ac_mask
+
+        u = np.arange(h)[:, None] % 8
+        v = np.arange(w)[None, :] % 8
+        freq = u + v
+
+        variant_settings = {
+            "JMiPOD": {"mask": nonzero_ac & (freq >= 2) & (freq <= 6), "bpnz": 1.00, "flip_mode": "invert"},
+            "JUNIWARD": {"mask": nonzero_ac & (freq > 6), "bpnz": 0.50, "flip_mode": "random"},
+            "UERD": {"mask": nonzero_ac, "bpnz": 0.10, "flip_mode": "positive"},
+        }
+
+        for name, settings in variant_settings.items():
+            mask = settings["mask"]
+            bpnz = settings["bpnz"]
+            flip_mode = settings["flip_mode"]
+
+            Y_mod = Y.copy()
+            n_pixels = np.count_nonzero(mask)
+            n_flips = int(n_pixels * bpnz)
+
+            if n_flips > 0:
+                idx = np.column_stack(np.where(mask))
+                selected = rng.choice(len(idx), size=n_flips, replace=False)
+                coords = idx[selected]
+
+                if flip_mode == "invert":
+                    flips = -np.sign(Y_mod[coords[:, 0], coords[:, 1]])
+                    flips[flips == 0] = rng.choice([-1, 1], size=np.sum(flips == 0))
+                elif flip_mode == "random":
+                    flips = rng.choice([-1, 1], size=n_flips)
+                elif flip_mode == "positive":
+                    flips = np.ones(n_flips, dtype=int)
+                else:
+                    raise ValueError(f"Unbekannter Flip-Modus: {flip_mode}")
+
+                Y_mod[coords[:, 0], coords[:, 1]] += flips
+
+            out_path = variant_folders[name] / path.name
+            _save_valid_and_inject_dct(in_path=path, out_path=out_path, Y_mod=Y_mod, Cb=Cb, Cr=Cr, qtables=qtables)
+
+    return f"✅ {len(files)} Bilder verarbeitet – Stego-Varianten liegen in {stego_base_path}/(JMiPOD|JUNIWARD|UERD)"
+
+
+def build_file_index(
+    dataset_root: str,
+    class_labels: Dict[str, int],
+    subsample_percent: float = 1.0,
+    seed: int = 42,
+) -> pd.DataFrame:
     """
-    Erzeugt JMiPOD-, JUNIWARD- und UERD-ähnliche Varianten durch ±1-Flips
-    quantisierter AC-DCT-Koeffizienten OHNE JPEG-Rekompression.
+    Erstellt einen DataFrame mit Bild‐Pfaden und Klassen­namen (ohne Metadaten).
 
-    ▸ **Quantisierungstabellen bleiben unverändert**
-    ▸ **Farbinformation (Cb/Cr) bleibt unberührt**
-    ▸ **Payload-Rate** = Bits pro *nicht-null* AC-Koeffizient
-
-    Args
-    ----
-    cover_path
-        Ordner mit Cover-JPEGs (z. B. „…/PD12M/Cover“).
-    stego_base_path
-        Basisordner; es werden Unterordner „JMiPOD“, „JUNIWARD“, „UERD“
-        angelegt.
-    payload_rates
-        Dict mit Payload-Raten pro Algorithmus (Default ≈ ALASKA2-Level).
-        Beispiel: ``{"JMiPOD": 0.4, "JUNIWARD": 0.4, "UERD": 0.4}``
-    seed
-        RNG-Seed.
+    - Liest alle Dateinamen aus dem Cover-Ordner.
+    - Wählt optional einen prozentualen Anteil davon (Subsampling).
+    - Kombiniert diese Namen mit den anderen Klassen­ordnern,
+      so dass in jeder Klasse die identischen Dateinamen vorkommen.
 
     Returns
     -------
-    str
-        Statusmeldung.
-    """
-    rng = np.random.default_rng(seed)
-
-    cover_folder = Path(cover_path)
-    jmipod_folder = Path(stego_base_path) / "JMiPOD"
-    juniward_folder = Path(stego_base_path) / "JUNIWARD"
-    uerd_folder = Path(stego_base_path) / "UERD"
-    if all(folder.exists() and any(folder.glob("*.jpg")) for folder in [jmipod_folder, juniward_folder, uerd_folder]):
-        return "✅ Stego-Ordner existieren bereits und enthalten Bilder. Keine neue Generierung nötig."
-
-    for f in (jmipod_folder, juniward_folder, uerd_folder):
-        f.mkdir(parents=True, exist_ok=True)
-
-    # Nutzlast-Raten
-    if payload_rates is None:
-        payload_rates = {"JMiPOD": 0.4, "JUNIWARD": 0.4, "UERD": 0.4}
-
-    cover_images = sorted(cover_folder.glob("*.jpg"))
-    if not cover_images:
-        return f"❌ Keine Cover-Bilder in {cover_folder} gefunden."
-
-    # -----------------------------------------------------------
-    for cover_img in tqdm(cover_images, desc="Erzeuge Stego-Varianten"):
-        jpeg = jio.read(str(cover_img))
-        y_coef = jpeg.coef_arrays[0]  # Y-Kanal (quanti­siert, int16)
-        h, w = y_coef.shape
-
-        # Masks: True = potentiell änder­bar
-        nz_mask = y_coef != 0  # keine DC=0-Flips
-        dc_mask = np.zeros_like(y_coef, dtype=bool)
-        dc_mask[0::8, 0::8] = True  # DC-Koeff. ausschliessen
-        ac_mask = nz_mask & ~dc_mask
-
-        # Frequenzpositionen (u+v)-Matrix für einfache JUNIWARD-Gewichtung
-        u = np.tile(np.arange(h)[:, None], (1, w))
-        v = np.tile(np.arange(w)[None, :], (h, 1))
-        freq_sum = (u % 8) + (v % 8)  # 0 (DC) … 14 (HF)
-
-        # ---------- JMiPOD ----------
-        # mittlere Frequenzen (2–6) bevorzugen
-        jm_mask_mid = (freq_sum >= 2) & (freq_sum <= 6) & ac_mask
-        idx_jm = _pick_payload_indices(jm_mask_mid, payload_rates["JMiPOD"], rng)
-        y_jm = y_coef.copy()
-        y_jm[idx_jm[:, 0], idx_jm[:, 1]] += rng.choice([-1, 1], size=len(idx_jm))
-
-        # ---------- JUNIWARD ----------
-        # hochfrequente (>6) und texturreiche Blöcke (AC-Energie)
-        hf_mask = (freq_sum > 6) & ac_mask
-        # einfache Textur-Schätzung: Varianz im 8×8-Block > Schwelle
-        energy = np.abs(y_coef).reshape(h // 8, 8, w // 8, 8).sum(axis=(1, 3))  # Block-Energie
-        high_energy_blocks = energy > np.percentile(energy, 70)
-        block_mask = np.repeat(np.repeat(high_energy_blocks, 8, axis=0), 8, axis=1)
-        ju_mask = hf_mask & block_mask
-        idx_ju = _pick_payload_indices(ju_mask, payload_rates["JUNIWARD"], rng)
-        y_ju = y_coef.copy()
-        y_ju[idx_ju[:, 0], idx_ju[:, 1]] += rng.choice([-1, 1], size=len(idx_ju))
-
-        # ---------- UERD ----------
-        # breit gestreut, zufällig
-        ue_mask = ac_mask
-        idx_ue = _pick_payload_indices(ue_mask, payload_rates["UERD"], rng)
-        y_ue = y_coef.copy()
-        y_ue[idx_ue[:, 0], idx_ue[:, 1]] += rng.choice([-1, 1], size=len(idx_ue))
-
-        # ---------- Speichern ----------
-        for algo, y_mod, out_folder in [
-            ("JMiPOD", y_jm, jmipod_folder),
-            ("JUNIWARD", y_ju, juniward_folder),
-            ("UERD", y_ue, uerd_folder),
-        ]:
-            jpeg_mod = jio.read(str(cover_img))
-            jpeg_mod.coef_arrays[0] = y_mod.astype(np.int16)
-            out_path = out_folder / cover_img.name
-            jio.write(jpeg_mod, str(out_path))
-
-    return f"✅ {len(cover_images)} Bilder verarbeitet – Stego-Varianten liegen in {stego_base_path}/(JMiPOD|JUNIWARD|UERD)"
-
-
-def prepare_dataset(dataset_root: str, class_labels: dict, subsample_percent: float = 1.0, seed: int = 42) -> pd.DataFrame:
-    """
-    Erstellt ein Datenset aus einem JPEG-Steganalyse-Datensatz,
-    inklusive optionaler Subsampling-Logik und vollständiger Metadatenextraktion.
-
-    Für jedes Bild werden folgende Informationen extrahiert:
-    - 'path': Pfad zur JPEG-Datei
-    - 'label_name': Klassenname (Cover, JMiPOD, ...)
-    - 'jpeg_quality': geschätzte JPEG-Qualitätsstufe (75, 90, 95), basierend auf dem Mittelwert der Y-Quantisierungstabelle
-    - 'width', 'height': Bildauflösung
-    - 'mode': Farbraum-Modus (z. B. 'YCbCr')
-    - 'q_y_00' bis 'q_y_63': alle 64 Einträge der Y-Quantisierungstabelle
-
-    Hinweis: Die JPEG-Qualitätsstufe wird heuristisch geschätzt, da sie nicht explizit gespeichert ist.
-    Die Zuweisung erfolgt basierend auf typischen Mittelwerten aus libjpeg-Standardtabellen.
-
-    Args:
-        dataset_root (str): Pfad zum Verzeichnis mit den Klassenordnern.
-        class_labels (dict): Mapping von Klassenordnern zu numerischen Labels.
-        subsample_percent (float): Anteil der Bildnamen, die verwendet werden sollen (z.B. 0.10 = 10% oder 1.0 = 100%).
-        seed (int): Seed für die Zufallsauswahl.
-
-    Returns:
-        pd.DataFrame: Aufbereiteter Datensatz mit Metadaten.
+    pd.DataFrame  Spalten: 'path', 'label_name'
     """
     random.seed(seed)
-    dataset_root = Path(dataset_root)
+    root = Path(dataset_root)
 
-    cover_folder = dataset_root / "Cover"
-    all_images = sorted([img.name for img in cover_folder.glob("*.jpg")])
+    # 1) Alle Dateinamen im Cover-Ordner sammeln
+    cover_folder = root / "Cover"
+    all_filenames = sorted(p.name for p in cover_folder.glob("*.jpg"))
 
-    if subsample_percent < 1.0:
-        sample_size = int(len(all_images) * subsample_percent)
-        selected_image_names = random.sample(all_images, sample_size)
+    # 2) Zufälliges Subsampling (identische Auswahl für alle Klassen!)
+    if 0 < subsample_percent < 1.0:
+        k = int(len(all_filenames) * subsample_percent)
+        filenames = random.sample(all_filenames, k)
     else:
-        selected_image_names = all_images
+        filenames = all_filenames
 
-    image_paths = []
-    label_names = []
-
+    # 3) Dateipfade & Klassen auflisten
+    records = []
     for class_name in class_labels:
-        class_folder = dataset_root / class_name
-        for img_name in selected_image_names:
-            img_path = class_folder / img_name
-            image_paths.append(str(img_path))
-            label_names.append(class_name)
+        class_dir = root / class_name
+        for name in filenames:
+            records.append(
+                {
+                    "path": str(class_dir / name),
+                    "label_name": class_name,
+                }
+            )
 
-    df = pd.DataFrame(
-        {
-            "path": image_paths,
-            "label_name": label_names,
+    return pd.DataFrame(records)
+
+
+def add_jpeg_metadata(df: pd.DataFrame, quiet: bool = False) -> pd.DataFrame:
+    """
+    Ergänzt zu einem DataFrame mit einer 'path'-Spalte sämtliche JPEG-Metadaten.
+
+    Für jedes Bild werden erzeugt:
+    - 'jpeg_quality': heuristische Schätzung (75, 90, 95)
+    - 'width', 'height', 'mode'
+    - 'q_y_00' … 'q_y_63'  (64 Einträge der Y-Quantisierungstabelle)
+
+    Hinweis zur Qualitäts­schätzung:
+        mean(q_y)  <   8  → 95
+        8 ≤ mean < 20  → 90
+        sonst          → 75
+    """
+    meta_rows = []
+    iterator = df["path"]
+    if not quiet:
+        iterator = tqdm(iterator, desc="Metadaten extrahieren")
+
+    for path in iterator:
+        meta = {
+            "jpeg_quality": -1,
+            "width": -1,
+            "height": -1,
+            "mode": "unknown",
+            **{f"q_y_{i:02d}": -1 for i in range(64)},
         }
-    )
-
-    # Metadaten effizient extrahieren
-    meta_data = []
-    for path in tqdm(df["path"], desc="Extrahiere Metadaten"):
-        result = {"jpeg_quality": -1, "width": -1, "height": -1, "mode": "unknown", **{f"q_y_{i:02d}": -1 for i in range(64)}}
 
         try:
             with Image.open(path) as img:
-                result["width"], result["height"] = img.size
-                result["mode"] = img.mode
+                meta["width"], meta["height"] = img.size
+                meta["mode"] = img.mode
 
-                if hasattr(img, "quantization") and img.quantization:
+                if getattr(img, "quantization", None):
                     q_y = img.quantization.get(0, [-1] * 64)
                     q_mean = np.mean(q_y)
-                    if q_mean < 8:  # empirisch: mean ≈ 5 → Qualität 95
-                        result["jpeg_quality"] = 95
-                    elif q_mean < 20:  # empirisch: mean ≈ 11 → Qualität 90
-                        result["jpeg_quality"] = 90
-                    else:  # empirisch: mean ≈ 29 → Qualität 75
-                        result["jpeg_quality"] = 75
-                    # result["jpeg_quality"] = q_mean
-                    for i in range(min(64, len(q_y))):
-                        result[f"q_y_{i:02d}"] = q_y[i]
+
+                    if q_mean < 8:
+                        meta["jpeg_quality"] = 95
+                    elif q_mean < 20:
+                        meta["jpeg_quality"] = 90
+                    else:
+                        meta["jpeg_quality"] = 75
+
+                    for i, q in enumerate(q_y[:64]):
+                        meta[f"q_y_{i:02d}"] = q
         except Exception:
+            # Bild konnte nicht gelesen werden → Platzhalter bleiben -1
             pass
 
-        meta_data.append(result)
+        meta_rows.append(meta)
 
-    meta_df = pd.DataFrame(meta_data)
-    df = pd.concat([df.reset_index(drop=True), meta_df.reset_index(drop=True)], axis=1)
-
-    # Shuffle
-    df = df.sample(frac=1, random_state=seed).reset_index(drop=True)
-    return df
+    meta_df = pd.DataFrame(meta_rows)
+    return pd.concat([df.reset_index(drop=True), meta_df], axis=1)
 
 
 def split_dataset_by_filename(
