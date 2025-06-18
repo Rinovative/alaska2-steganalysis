@@ -51,5 +51,4 @@ pywin32==310 ; sys_platform == "win32" and platform_python_implementation != "Py
 pywinpty==2.0.15 ; python_version >= "3.11" and python_version < "4.0" and os_name == "nt"
 torchinfo==1.8.0 ; python_version >= "3.11" and python_version < "4.0"
 torchmetrics==1.7.3 ; python_version >= "3.11" and python_version < "4.0"
-triton==3.1.0 ; platform_system == "Linux" and platform_machine == "x86_64" and python_version < "3.13" and python_version >= "3.11"
 typing-extensions==4.14.0 ; python_version >= "3.11" and python_version < "4.0"
