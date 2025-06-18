@@ -109,29 +109,60 @@ Das Projekt umfasst:
 
 ```bash
 .
-├── data/
-│   └── raw/
+├── .devcontainer/                        # Docker-Container-Konfiguration für die Entwicklung
+│   ├── devcontainer.json                 # Konfigurationsdatei für Visual Studio Code DevContainer
+│   └── Dockerfile                        # Dockerfile zur Erstellung eines Entwicklungscontainers für die Umgebung
+│
+├── .github/                              # GitHub-spezifische Workflows und Aktionen
+│   └── workflows/                        # Enthält CI/CD-Workflows für GitHub Actions
+│       └── lint.yml                      # Linter-Workflow, der bei jeder Codeänderung ausgeführt wird, um den Code zu prüfen und zu formatieren
+│
+├── cache/                                # Zwischengespeicherte Daten (z.B. vorverarbeitete Bilder, Trainingsdaten)
+│   ├── alaska2/                          # Enthält Zwischenspeicher-Daten für den ALASKA2-Datensatz
+│   └── pd12m/                            # Enthält Zwischenspeicher-Daten für den PD12M-Datensatz (synthetische Stego-Varianten)
+│
+├── data/                                 # Datenverzeichnis
+│   └── raw/                              # Rohdaten
 │       ├── alaska2-image-steganalysis/   # Enthält Cover + Stego-Varianten (JMiPOD, JUNIWARD, UERD)
-│       └── PD12M/                        # Enthält Cover + synthetischer Stego-Varianten (JMiPOD, JUNIWARD, UERD)
-├── images/                               # Grafiken
-├── cache/                                # Zwischengespeicherte Daten und Plots
-├── src/
+│       └── PD12M/                        # Enthält Cover + synthetische Stego-Varianten (JMiPOD, JUNIWARD, UERD)
+├── images/                               # Grafiken für Visualisierungen (ROC, AUC, etc.)
+│
+├── src/                                  # Quellcode des Projekts
 │   ├── eda/                              # Explorative Datenanalyse (Modulstruktur)
-│   │   ├── __init__.py
-│   ├── util/                             # Hilfsfunktionen
-│   │   ├── util_cache.py                 # Plot-Caching und Steuerung
-│   │   ├── util_data.py                  # Datensatz-Vorverarbeitung und -Download
-│   │   ├── util_nb.py                    # Notebook-Unterstützung (Widgets, Panels)
-│   │   └── poetry/                       # CI/CD-Linting-Konfiguration
+│   │   ├── __init__.py                   # Initialisierungsdatei für das EDA-Modul
+│   │   ├── eda_color_channel_statistics.py  # Analyse der Farbkanäle in den Bildern (Erklärung und Visualisierung)
+│   │   ├── eda_dct.py                    # DCT-basierte Bildanalyse, zur Untersuchung der Frequenzkomponenten
+│   │   ├── eda_examples.py               # Beispielvisualisierungen der Bilder (Cover vs. Stego)
+│   │   └── eda_overview.py               # Übersicht und Zusammenfassung der explorativen Datenanalyse
+│   │
+│   ├── model/                            # Modellarchitektur, Training und Evaluation
+│   │   ├── __init__.py                   # Initialisierungsdatei für das Modellmodul
+│   │   ├── model_train.py                # Trainingsskript für das Modell (Modellaufbau, Training, Optimierung)
+│   │   ├── model_evaluation.py           # Evaluierung des Modells (z.B. mit AUC, ROC, Konfusionsmatrix)
+│   │   ├── model_metrics.py              # Berechnung und Visualisierung von Metriken (Loss, Accuracy, AUC)
+│   │   ├── model_plot.py                 # Visualisierung von Ergebnissen (z.B. Konfusionsmatrix, Feature-Importanz)
+│   │
+│   ├── util/                             # Hilfsfunktionen für Datenvorverarbeitung und Notebook-Unterstützung
+│   │   ├── util_cache.py                 # Caching-Funktionen für Plots und Berechnungen
+│   │   ├── util_data.py                  # Funktionen für das Laden und Vorverarbeiten von Daten
+│   │   ├── util_nb.py                    # Funktionen zur Unterstützung von Jupyter-Notebooks (z.B. Widgets, Panels)
+│   │   └── poetry/                       # CI/CD-Linting-Konfiguration für Poetry
 │   │       └── poetry_lint.py
+│   │
 │   └── __init__.py
-├── .gitignore                            # Ausschlussregeln für Git
-├── ANN_Projekt_Rino_Albertin_Steganalyse.ipynb  # Hauptnotebook
-├── LICENSE                               # Lizenzdatei (MIT License)
-├── poetry.lock                           # Fixierte Abhängigkeiten (Poetry)
-├── pyproject.toml                        # Projektdefinition (Poetry)
-├── README.md                             # Projektübersicht (diese Datei)
-└── requirements.txt                      # Alternativ für Pip / Binder / Colab
+│
+├── .gitignore                            # Ausschlussregeln für Git (z.B. temporäre Dateien, IDE-Settings, etc.)
+├── ANN_Projekt_Rino_Albertin_Steganalyse.ipynb  # Haupt-Jupyter-Notebook für das Steganalyse-Projekt
+│   └── Das Notebook enthält:
+│       ├── Einleitung und Beschreibung des Projekts
+│       ├── Explorative Datenanalyse
+│       ├── Modelltraining und Hyperparameter-Tuning
+│       ├── Evaluierung und Visualisierung der Ergebnisse
+├── LICENSE                               # Lizenzdatei für das Projekt (MIT License)
+├── poetry.lock                           # Fixierte Abhängigkeiten (Poetry), um Abhängigkeiten für das Projekt zu sperren
+├── pyproject.toml                        # Projektdefinition und Abhängigkeiten (Poetry), welche die Python-Pakete und Versionen festlegt
+├── README.md                             # Projektübersicht und Erklärung der Zielsetzung und Methodik
+└── requirements.txt                      # Alternativ für Pip / Binder / Colab, um die Abhängigkeiten zu installieren
 ```
 </details>
 
