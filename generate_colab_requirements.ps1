@@ -1,6 +1,4 @@
-# generate_colab_requirements.ps1
-
-# 1. Exportiere Poetry-Abhängigkeiten für Colab (ohne URLs)
+# 1. Exportiere Poetry-Abhängigkeiten für Colab (ohne URLs und ohne fsspec und andere doppelten Pakete)
 $colabContent = poetry export --without-hashes --without-urls -f requirements.txt | `
     Where-Object {
         ($_ -notmatch 'ipython') -and
@@ -19,29 +17,108 @@ $colabContent = poetry export --without-hashes --without-urls -f requirements.tx
         ($_ -notmatch 'cudf') -and
         ($_ -notmatch 'pylibcudf') -and
         ($_ -notmatch 'nvidia') -and
-        ($_ -notmatch 'moviepy')
+        ($_ -notmatch 'moviepy') -and
+        ($_ -notmatch 'requests') -and
+        ($_ -notmatch 'seaborn') -and
+        ($_ -notmatch 'scikit-learn') -and
+        ($_ -notmatch 'plotly') -and
+        ($_ -notmatch 'debugpy') -and
+        ($_ -notmatch 'dill') -and
+        ($_ -notmatch 'cffi') -and
+        ($_ -notmatch 'pycparser') -and
+        ($_ -notmatch 'pip') -and
+        ($_ -notmatch 'setuptools') -and
+        ($_ -notmatch 'packaging') -and
+        ($_ -notmatch 'beautifulsoup4') -and
+        ($_ -notmatch 'colorama') -and
+        ($_ -notmatch 'pyyaml') -and
+        ($_ -notmatch 'pillow') -and
+        ($_ -notmatch 'plotly') -and
+        ($_ -notmatch 'joblib') -and
+        ($_ -notmatch 'tqdm') -and
+        ($_ -notmatch 'aiohttp') -and
+        ($_ -notmatch 'httpx') -and
+        ($_ -notmatch 'pandas') -and
+        ($_ -notmatch 'matplotlib') -and
+        ($_ -notmatch 'lightning-utilities') -and
+        ($_ -notmatch 'psutil') -and
+        ($_ -notmatch 'networkx') -and
+        ($_ -notmatch 'scipy') -and
+        ($_ -notmatch 'seaborn') -and
+        ($_ -notmatch 'jpegio') -and
+        ($_ -notmatch 'jpegio') -and
+        ($_ -notmatch 'attrs') -and
+        ($_ -notmatch 'babel') -and
+        ($_ -notmatch 'charset-normalizer') -and
+        ($_ -notmatch 'comm') -and
+        ($_ -notmatch 'defusedxml') -and
+        ($_ -notmatch 'executing') -and
+        ($_ -notmatch 'filelock') -and
+        ($_ -notmatch 'fonttools') -and
+        ($_ -notmatch 'frozenlist') -and
+        ($_ -notmatch 'kiwisolver') -and
+        ($_ -notmatch 'lazy-loader') -and
+        ($_ -notmatch 'markupsafe') -and
+        ($_ -notmatch 'mistune') -and
+        ($_ -notmatch 'mpmath') -and
+        ($_ -notmatch 'multiprocess') -and
+        ($_ -notmatch 'parso') -and
+        ($_ -notmatch 'pexpect') -and
+        ($_ -notmatch 'platformdirs') -and
+        ($_ -notmatch 'prometheus-client') -and
+        ($_ -notmatch 'prompt-toolkit') -and
+        ($_ -notmatch 'propcache') -and
+        ($_ -notmatch 'psutil') -and
+        ($_ -notmatch 'ptyprocess') -and
+        ($_ -notmatch 'pure-eval') -and
+        ($_ -notmatch 'pygments') -and
+        ($_ -notmatch 'pyparsing') -and
+        ($_ -notmatch 'python-dateutil') -and
+        ($_ -notmatch 'python-json-logger') -and
+        ($_ -notmatch 'pytz') -and
+        ($_ -notmatch 'pyzmq') -and
+        ($_ -notmatch 'referencing') -and
+        ($_ -notmatch 'regex') -and
+        ($_ -notmatch 'rfc3339-validator') -and
+        ($_ -notmatch 'rfc3986-validator') -and
+        ($_ -notmatch 'rpds-py') -and
+        ($_ -notmatch 'safetensors') -and
+        ($_ -notmatch 'scikit-image') -and
+        ($_ -notmatch 'scipy') -and
+        ($_ -notmatch 'send2trash') -and
+        ($_ -notmatch 'six') -and
+        ($_ -notmatch 'sniffio') -and
+        ($_ -notmatch 'soupsieve') -and
+        ($_ -notmatch 'stack-data') -and
+        ($_ -notmatch 'sympy') -and
+        ($_ -notmatch 'terminado') -and
+        ($_ -notmatch 'threadpoolctl') -and
+        ($_ -notmatch 'tifffile') -and
+        ($_ -notmatch 'timm') -and
+        ($_ -notmatch 'tinycss2') -and
+        ($_ -notmatch 'tornado') -and
+        ($_ -notmatch 'traitlets') -and
+        ($_ -notmatch 'types-python-dateutil') -and
+        ($_ -notmatch 'tzdata') -and
+        ($_ -notmatch 'uri-template') -and
+        ($_ -notmatch 'urllib3') -and
+        ($_ -notmatch 'wcwidth') -and
+        ($_ -notmatch 'webcolors') -and
+        ($_ -notmatch 'webencodings') -and
+        ($_ -notmatch 'websocket-client') -and
+        ($_ -notmatch 'widgetsnbextension') -and
+        ($_ -notmatch 'xxhash') -and
+        ($_ -notmatch 'yarl')
     }
 
 # 2. Feste Basis-Abhängigkeiten definieren
 $baseDeps = @"
-ipykernel==6.17.1
-ipython==7.34.0
-notebook==6.5.7
-pandas==2.2.2
-numpy>=1.26,<2.1
-pyarrow<20
-torch
-torchvision
-decorator<5.0
+# Definiere nur die wirklich benötigten Pakete
+clip-anytorch==2.6.0 ; python_version >= "3.11" and python_version < "4.0"
 "@ -split "`n"
 
-# 3. clip-anytorch manuell hinzufügen (mit Python-Constraint)
-$extraDeps = @(
-    'clip-anytorch==2.6.0 ; python_version >= "3.11" and python_version < "4.0"'
-)
+# 3. Alles zusammen in requirements_colab.txt schreiben
+$baseDeps + $colabContent | Set-Content requirements_colab.txt
 
-# 4. Alles zusammen in requirements_colab.txt schreiben
-$baseDeps + $colabContent + $extraDeps | Set-Content requirements_colab.txt
-
-# 5. Fertigmeldung
+# 4. Fertigmeldung
 Write-Output "requirements_colab.txt wurde erstellt!"
