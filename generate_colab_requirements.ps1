@@ -108,7 +108,8 @@ $colabContent = poetry export --without-hashes --without-urls -f requirements.tx
         ($_ -notmatch 'websocket-client') -and
         ($_ -notmatch 'widgetsnbextension') -and
         ($_ -notmatch 'xxhash') -and
-        ($_ -notmatch 'yarl')
+        ($_ -notmatch 'yarl') -and
+        ($_ -notmatch 'fsspec')
     }
 
 # 2. Feste Basis-Abhängigkeiten definieren
