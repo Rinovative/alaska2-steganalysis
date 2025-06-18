@@ -115,6 +115,13 @@ $colabContent = poetry export --without-hashes --without-urls -f requirements.tx
 $baseDeps = @"
 # Definiere nur die wirklich benötigten Pakete
 clip-anytorch==2.6.0 ; python_version >= "3.11" and python_version < "4.0"
+fsspec==2025.3.2 ; python_version >= "3.11" and python_version < "4.0"
+jpegio==0.2.8 ; python_version >= "3.11" and python_version < "4.0"
+
+# Fixierte Versionen für torch und torchaudio, um Konflikte zu vermeiden
+torch==2.6.0 ; python_version >= "3.11" and python_version < "4.0"
+torchmetrics==1.7.3 ; python_version >= "3.11" and python_version < "4.0"
+torchinfo==1.8.0 ; python_version >= "3.11" and python_version < "4.0"
 "@ -split "`n"
 
 # 3. Alles zusammen in requirements_colab.txt schreiben
