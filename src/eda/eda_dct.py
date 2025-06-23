@@ -238,7 +238,9 @@ def plot_flip_position_heatmap(df: pd.DataFrame, channel: int = 0, dataset_name:
     return fig
 
 
-def plot_cover_stego_flipmask(df: pd.DataFrame, dataset_name: str = "", init_channel: int = 0) -> widgets.VBox:
+def plot_cover_stego_flipmask(df: pd.DataFrame,
+                              dataset_name: str = "",
+                              init_channel: int = 0) -> widgets.VBox:
     """
     Zeigt für ein Motiv vier Bilder nebeneinander:
     - Cover
@@ -249,13 +251,13 @@ def plot_cover_stego_flipmask(df: pd.DataFrame, dataset_name: str = "", init_cha
     ▸ zwei Darstellungsmodi ("overlay", "heatmap")
     """
     df = df.copy()
-    df["filename"] = df["path"].apply(lambda p: Path(p).name)
+    df["filename"]  = df["path"].apply(lambda p: Path(p).name)
     df["base_name"] = df["filename"].str.extract(r"(\d+)\.jpg")
 
-    LABELS = ["Cover", "JMiPOD", "JUNIWARD", "UERD"]
+    LABELS      = ["Cover", "JMiPOD", "JUNIWARD", "UERD"]
     channel_map = {"Y": 0, "Cb": 1, "Cr": 2}
 
-    # ­— Widgets ---------------------------------------------------------
+    # ­— Widgets -------------------------------------------------------
     channel_selector = widgets.Dropdown(
         options=list(channel_map.keys()),
         value=list(channel_map.keys())[init_channel],
@@ -269,18 +271,23 @@ def plot_cover_stego_flipmask(df: pd.DataFrame, dataset_name: str = "", init_cha
         layout=widgets.Layout(width="175px"),
     )
 
-    complete_groups = df.groupby("base_name")["label_name"].nunique().loc[lambda g: g == 4].index.sort_values().tolist()
+    complete_groups = (
+        df.groupby("base_name")["label_name"].nunique()
+          .loc[lambda g: g == 4].index.sort_values().tolist()
+    )
 
-    idx_input = widgets.BoundedIntText(value=0, min=0, max=len(complete_groups) - 1, description="Index:")
+    idx_input = widgets.BoundedIntText(
+        value=0, min=0, max=len(complete_groups) - 1, description="Index:"
+    )
     btn_prev = widgets.Button(description="←", layout=widgets.Layout(width="40px"))
     btn_next = widgets.Button(description="→", layout=widgets.Layout(width="40px"))
-    btn_row = widgets.HBox([idx_input, btn_prev, btn_next])
-    out = widgets.Output()
+    btn_row  = widgets.HBox([idx_input, btn_prev, btn_next])
+    out      = widgets.Output()
 
-    # ­— Kernfunktion ----------------------------------------------------
+    # ­— Kernfunktion --------------------------------------------------
     def show(idx: int, channel_key: str, mode: str):
         base_id = complete_groups[idx]
-        group = df[df["base_name"] == base_id]
+        group   = df[df["base_name"] == base_id]
 
         with out:
             clear_output(wait=True)
@@ -288,84 +295,106 @@ def plot_cover_stego_flipmask(df: pd.DataFrame, dataset_name: str = "", init_cha
                 print(f"Inkomplette Bildgruppe: {base_id}")
                 return
 
-            ch = channel_map[channel_key]
-            paths = {lbl: group[group["label_name"] == lbl]["path"].iloc[0] for lbl in LABELS}
+            ch    = channel_map[channel_key]
+            paths = {lbl: group[group["label_name"] == lbl]["path"].iloc[0]
+                     for lbl in LABELS}
+
             jpeg_cover = jio.read(str(paths["Cover"]))
             coef_cover = jpeg_cover.coef_arrays[ch].astype(np.int32)
 
             cover_img = Image.open(paths["Cover"]).convert("RGB")
             cover_img = cover_img.resize(coef_cover.shape[::-1])
 
-            fig = plt.figure(figsize=(22, 6), constrained_layout=True)
-            spec = gridspec.GridSpec(ncols=5, nrows=1, figure=fig, width_ratios=[1, 1, 1, 1, 0.03])
+            fig  = plt.figure(figsize=(22, 6), constrained_layout=True)
+            spec = gridspec.GridSpec(
+                ncols=5, nrows=1, figure=fig,
+                width_ratios=[1, 1, 1, 1, 0.03]     # letzte Spalte: Colorbar
+            )
             axes = [fig.add_subplot(spec[0, i]) for i in range(4)]
-            cax = fig.add_subplot(spec[0, 4])
+            cax  = fig.add_subplot(spec[0, 4])
 
             fig.suptitle(
-                f"AC-Flip-Masken – ID {base_id} – Kanal: {channel_key} – " f"{dataset_name} – Modus: {mode}",
+                f"AC-Flip-Masken – ID {base_id} – Kanal: {channel_key} – "
+                f"{dataset_name} – Modus: {mode}",
                 fontsize=16,
             )
 
-            # Cover-Bild
+            # Cover ----------------------------------------------------
             axes[0].imshow(cover_img)
             axes[0].set_title("Cover")
             axes[0].axis("off")
 
-            # Stego-Varianten
+            # Stego-Varianten -----------------------------------------
             for ax, lbl in zip(axes[1:], LABELS[1:]):
                 jpeg_stego = jio.read(str(paths[lbl]))
                 coef_stego = jpeg_stego.coef_arrays[ch].astype(np.int32)
 
-                # AC-Koeffizienten-Differenz (DC ausschliessen)
-                mask = np.ones_like(coef_cover, dtype=bool)
-                mask[0::8, 0::8] = False
-                delta = (coef_stego - coef_cover) * mask
+                # AC-Koeff.-Differenz (DC ausschließen)
+                mask              = np.ones_like(coef_cover, dtype=bool)
+                mask[0::8, 0::8]  = False
+                delta             = (coef_stego - coef_cover) * mask
 
                 ax.imshow(cover_img)
 
                 if mode == "overlay":
-                    flipmask = (delta != 0).astype(np.uint8)
-                    pos_y, pos_x = np.where(delta == 1)
+                    flipmask  = (delta != 0).astype(np.uint8)
+                    pos_y, pos_x = np.where(delta ==  1)
                     neg_y, neg_x = np.where(delta == -1)
 
                     ax.imshow(flipmask, cmap="Greys", alpha=0.2)
-                    ax.scatter(pos_x, pos_y, s=1.0, c="red", alpha=0.5)
+                    ax.scatter(pos_x, pos_y, s=1.0, c="red",  alpha=0.5)
                     ax.scatter(neg_x, neg_y, s=1.0, c="blue", alpha=0.5)
 
                 elif mode == "heatmap":
-                    heat = gaussian_filter(np.abs(delta).astype(float), sigma=5)
-                    heat = np.power(heat, 1.8)  # Kontrast
+                    heat      = gaussian_filter(np.abs(delta).astype(float), sigma=5)
+                    heat      = np.power(heat, 1.8)  # Kontrast
                     heat_norm = (heat - heat.min()) / (heat.max() - heat.min() + 1e-6)
-                    ax.imshow(cover_img)
-                    ax.imshow(heat_norm, cmap="magma", alpha=0.6)
+
+                    ax.imshow(heat_norm, cmap="magma", vmin=0, vmax=1, alpha=0.6)
 
                 ax.set_title(lbl)
                 ax.axis("off")
 
-            # Farblegende
-            norm = Normalize(vmin=-2, vmax=2)
-            sm = ScalarMappable(norm=norm, cmap="seismic")
-            sm.set_array([])
-            fig.colorbar(sm, cax=cax, label=f"Δ (AC, {channel_key})")
+            # Farb­legende: immer nur **eine** -------------------------
+            cax.clear()                               # alte Leiste entfernen
+
+            if mode == "overlay":
+                sm = ScalarMappable(
+                    norm=Normalize(vmin=-2, vmax=2),
+                    cmap="seismic",
+                )
+                sm.set_array([])
+                fig.colorbar(sm, cax=cax,
+                             label=f"Δ (AC, {channel_key})")
+
+            elif mode == "heatmap":
+                sm = ScalarMappable(
+                    norm=Normalize(vmin=0, vmax=1),
+                    cmap="magma",
+                )
+                sm.set_array([])
+                fig.colorbar(sm, cax=cax,
+                             label="|Δ| (norm)")
 
             plt.show()
 
-    # ­— Navigation-Logik -----------------------------------------------
+    # ­— Navigation ----------------------------------------------------
     def go_relative(delta: int):
-        idx_input.value = max(0, min(len(complete_groups) - 1, idx_input.value + delta))
+        idx_input.value = max(0, min(len(complete_groups) - 1,
+                                     idx_input.value + delta))
 
     btn_prev.on_click(lambda _: go_relative(-1))
     btn_next.on_click(lambda _: go_relative(1))
 
-    # Widget-Callbacks
+    # Widget-Callbacks -------------------------------------------------
     def refresh(*_):
         show(idx_input.value, channel_selector.value, mode_selector.value)
 
-    idx_input.observe(lambda change: refresh(), names="value")
-    channel_selector.observe(lambda change: refresh(), names="value")
-    mode_selector.observe(lambda change: refresh(), names="value")
+    idx_input.observe(lambda changes: refresh(), names="value")
+    channel_selector.observe(lambda changes: refresh(), names="value")
+    mode_selector.observe(lambda changes: refresh(), names="value")
 
-    # Erstes Rendering
+    # Erstes Rendering -------------------------------------------------
     show(0, channel_selector.value, mode_selector.value)
 
     controls = widgets.HBox([btn_row, channel_selector, mode_selector])

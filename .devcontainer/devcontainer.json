@@ -5,6 +5,8 @@
         "context": ".."
     },
     "runArgs": [
+        "--name",
+        "stego-container",
         "--gpus",
         "all",
         "--ipc",
