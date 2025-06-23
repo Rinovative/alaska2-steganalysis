@@ -25,6 +25,12 @@ from PIL import Image
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 
+from pathlib import Path
+from tqdm import tqdm
+import conseal as cl
+import jpeglib as jpeglib
+
+
 
 def download_synthetic_PD12M(
     alaska2_path: str = "data/raw/alaska2-image-steganalysis/Cover",
@@ -207,92 +213,66 @@ def build_pd12m_like_reference(
     return f"✅ {len(best_urls)} Cover in '{dataset_dir}' gespeichert."
 
 
-def _save_valid_and_inject_dct(in_path: Path, out_path: Path, Y_mod: np.ndarray, Cb, Cr, qtables) -> None:
-    img = Image.open(in_path)
-    img.save(out_path, format="JPEG", qtables=qtables, quality="keep", subsampling="keep")
-    jpeg = jio.read(str(out_path))
-    jpeg.coef_arrays = [Y_mod.astype(np.int16), Cb, Cr]
-    jio.write(jpeg, str(out_path))
-
-
-def generate_stego_variants(
-    cover_path: Union[str, Path] = "data/raw/PD12M/Cover",
-    stego_base_path: Union[str, Path] = "data/raw/PD12M",
+def generate_conseal_stego(
+    cover_path: str = "data/raw/PD12M/Cover",
+    difficulty: float = 0.4,
     seed: int = 42,
+    force_new_generation: bool = False,
 ) -> str:
-    cover_path = Path(cover_path)
-    stego_base_path = Path(stego_base_path)
+    """
+    Erzeugt aus Cover‐JPEGs drei Stego‐Varianten mit conseal und speichert sie in Unterordnern.
 
-    jmipod_folder = stego_base_path / "JMiPOD"
-    juniward_folder = stego_base_path / "JUNIWARD"
-    uerd_folder = stego_base_path / "UERD"
-    variant_folders = {
-        "JMiPOD": jmipod_folder,
-        "JUNIWARD": juniward_folder,
-        "UERD": uerd_folder,
+    - UERD: Uniform Embedding Revisited Distortion
+    - JUNIWARD: JPEG‐UNIWARD
+    - JMiPOD: nsF5 als Ersatz für JMiPOD
+
+    Args:
+        cover_path (str): Pfad zum Cover‐Ordner mit *.jpg.
+        difficulty (float): Embedding‐Rate bzw. alpha (0.0–1.0).
+        seed (int): Basis‐Seed für RNG (pro Bild wird i hinzuaddiert).
+        force_new_generation (bool): Wenn True, werden die Stego‐Ordner immer neu befüllt,
+                                     auch wenn schon Bilder vorhanden sind.
+
+    Returns:
+        str: Statusmeldung, z. B. wie viele Bilder generiert wurden oder warum abgebrochen wurde.
+    """
+    cover_path = Path(cover_path)
+    stego_base = cover_path.parent
+
+    variant_fns = {
+        "UERD": lambda im0, jpeg, d, s: cl.uerd.simulate_single_channel(
+            y0=jpeg.Y, qt=jpeg.qt[0], alpha=d, seed=s
+        ),
+        "JUNIWARD": lambda im0, jpeg, d, s: cl.juniward.simulate_single_channel(
+            x0=im0.spatial[..., 0], y0=jpeg.Y, qt=jpeg.qt[0], alpha=d, seed=s
+        ),
+        "JMiPOD": lambda im0, jpeg, d, s: cl.nsF5.simulate_single_channel(
+            y0=jpeg.Y, alpha=d, seed=s
+        ),
     }
 
-    for folder in variant_folders.values():
-        folder.mkdir(parents=True, exist_ok=True)
+    # Ordner für jede Variante anlegen
+    variant_paths = {name: stego_base / name for name in variant_fns}
+    for p in variant_paths.values():
+        p.mkdir(parents=True, exist_ok=True)
+
+    # ggf. überspringen
+    if not force_new_generation and all(p.exists() and any(p.glob("*.jpg")) for p in variant_paths.values()):
+        return "✅ Stego‐Ordner existieren bereits und enthalten Bilder. Keine neue Generierung nötig."
 
     files = sorted(cover_path.glob("*.jpg"))
     if not files:
         return f"❌ Keine Bilder in {cover_path}"
 
-    if all(folder.exists() and any(folder.glob("*.jpg")) for folder in variant_folders.values()):
-        return "✅ Stego-Ordner existieren bereits und enthalten Bilder. Keine neue Generierung nötig."
+    for i, path in enumerate(tqdm(files, desc="Stego mit conseal")):
+        im0 = jpeglib.read_spatial(str(path), jpeglib.JCS_GRAYSCALE)
+        jpeg = jpeglib.read_dct(str(path))
 
-    for i, path in enumerate(tqdm(files, desc="Erzeuge Stego-Varianten")):
-        rng = np.random.default_rng(seed + i)
-        jpeg = jio.read(str(path))
-        qtables = jpeg.quant_tables
-        Y, Cb, Cr = jpeg.coef_arrays
+        for name, fn in variant_fns.items():
+            jpeg.Y = fn(im0, jpeg, difficulty, seed + i)
+            jpeg.write_dct(str(variant_paths[name] / path.name))
 
-        h, w = Y.shape
-        ac_mask = np.ones_like(Y, dtype=bool)
-        ac_mask[0::8, 0::8] = False
-        nonzero_ac = (Y != 0) & ac_mask
-
-        u = np.arange(h)[:, None] % 8
-        v = np.arange(w)[None, :] % 8
-        freq = u + v
-
-        variant_settings = {
-            "JMiPOD": {"mask": nonzero_ac & (freq >= 2) & (freq <= 6), "bpnz": 1.00, "flip_mode": "invert"},
-            "JUNIWARD": {"mask": nonzero_ac & (freq > 6), "bpnz": 0.50, "flip_mode": "random"},
-            "UERD": {"mask": nonzero_ac, "bpnz": 0.10, "flip_mode": "positive"},
-        }
-
-        for name, settings in variant_settings.items():
-            mask = settings["mask"]
-            bpnz = settings["bpnz"]
-            flip_mode = settings["flip_mode"]
-
-            Y_mod = Y.copy()
-            n_pixels = np.count_nonzero(mask)
-            n_flips = int(n_pixels * bpnz)
-
-            if n_flips > 0:
-                idx = np.column_stack(np.where(mask))
-                selected = rng.choice(len(idx), size=n_flips, replace=False)
-                coords = idx[selected]
-
-                if flip_mode == "invert":
-                    flips = -np.sign(Y_mod[coords[:, 0], coords[:, 1]])
-                    flips[flips == 0] = rng.choice([-1, 1], size=np.sum(flips == 0))
-                elif flip_mode == "random":
-                    flips = rng.choice([-1, 1], size=n_flips)
-                elif flip_mode == "positive":
-                    flips = np.ones(n_flips, dtype=int)
-                else:
-                    raise ValueError(f"Unbekannter Flip-Modus: {flip_mode}")
-
-                Y_mod[coords[:, 0], coords[:, 1]] += flips
-
-            out_path = variant_folders[name] / path.name
-            _save_valid_and_inject_dct(in_path=path, out_path=out_path, Y_mod=Y_mod, Cb=Cb, Cr=Cr, qtables=qtables)
-
-    return f"✅ {len(files)} Bilder verarbeitet – Stego-Varianten liegen in {stego_base_path}/(JMiPOD|JUNIWARD|UERD)"
+    return f"✅ {len(files)} Bilder generiert in {', '.join(variant_fns.keys())} (difficulty={difficulty})"
 
 
 def build_file_index(
