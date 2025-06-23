@@ -10,12 +10,13 @@ from concurrent.futures import ThreadPoolExecutor
 from io import BytesIO
 from itertools import islice
 from pathlib import Path
-from typing import Dict, Union
+from typing import Dict
 
 # Third-party libraries
 import clip
+import conseal as cl
 import faiss
-import jpegio as jio
+import jpeglib as jpeglib
 import numpy as np
 import pandas as pd
 import requests
@@ -24,12 +25,6 @@ from datasets import load_dataset
 from PIL import Image
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
-
-from pathlib import Path
-from tqdm import tqdm
-import conseal as cl
-import jpeglib as jpeglib
-
 
 
 def download_synthetic_PD12M(
@@ -240,15 +235,9 @@ def generate_conseal_stego(
     stego_base = cover_path.parent
 
     variant_fns = {
-        "UERD": lambda im0, jpeg, d, s: cl.uerd.simulate_single_channel(
-            y0=jpeg.Y, qt=jpeg.qt[0], alpha=d, seed=s
-        ),
-        "JUNIWARD": lambda im0, jpeg, d, s: cl.juniward.simulate_single_channel(
-            x0=im0.spatial[..., 0], y0=jpeg.Y, qt=jpeg.qt[0], alpha=d, seed=s
-        ),
-        "JMiPOD": lambda im0, jpeg, d, s: cl.nsF5.simulate_single_channel(
-            y0=jpeg.Y, alpha=d, seed=s
-        ),
+        "UERD": lambda im0, jpeg, d, s: cl.uerd.simulate_single_channel(y0=jpeg.Y, qt=jpeg.qt[0], alpha=d, seed=s),
+        "JUNIWARD": lambda im0, jpeg, d, s: cl.juniward.simulate_single_channel(x0=im0.spatial[..., 0], y0=jpeg.Y, qt=jpeg.qt[0], alpha=d, seed=s),
+        "JMiPOD": lambda im0, jpeg, d, s: cl.nsF5.simulate_single_channel(y0=jpeg.Y, alpha=d, seed=s),
     }
 
     # Ordner für jede Variante anlegen
