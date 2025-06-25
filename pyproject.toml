@@ -29,10 +29,11 @@ scikit-image = "^0.25.2"
 torchinfo = "^1.8.0"
 timm = "^1.0.15"
 torchmetrics = "^1.7.3"
-conseal = { git = "https://github.com/Rinovative/conseal.git", branch = "main" }
 llvmlite = ">=0.40.0"
 numba = ">=0.57"
 optuna = "^4.4.0"
+conseal = { git = "https://github.com/Rinovative/conseal.git", branch = "main" }
+deep-steganalysis = { git = "https://github.com/Rinovative/Deep-Steganalysis.git", branch = "main" }
 
 
 [tool.poetry.group.dev.dependencies]

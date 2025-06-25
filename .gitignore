@@ -45,7 +45,6 @@ data/raw/*
 # Verhindere, dass Bilder in den Ordnern versioniert werden
 *.jpg
 *.jpeg
-*.png
 !images/**
 safe
 

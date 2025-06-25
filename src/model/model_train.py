@@ -49,13 +49,25 @@ def _train_one_epoch(
     """
     Führt **eine Trainings-Epoche** aus.
 
+    Parameters
+    ----------
+    model : Torch-Modell
+    loader : Trainings-DataLoader
+    criterion : Loss-Funktion
+    optimizer : Optimierer
+    device : Zielgerät (CPU/GPU)
+    use_tqdm : Fortschrittsanzeige (True = mit tqdm)
+    desc : Zusatztext für tqdm-Anzeige
+
     Returns
     -------
     avg_loss : float
     accuracy : float  (0 … 1)
     """
+
     model.train()
     running_loss, correct, total = 0.0, 0, 0
+
     iterator = tqdm(loader, desc=desc, leave=False) if use_tqdm else loader
 
     for inputs, labels in iterator:
@@ -143,10 +155,10 @@ def run_experiment(
     device: str | torch.device = "cpu",
     show_device: bool = False,
     run_name: str | None = None,
-    save_dir: str | Path | None = None,  # Ordner für .pt
-    save_csv: str | Path | None = None,  # Ordner für History-CSV
-    patience: int = 5,  # Early-Stopping
-    min_delta: float = 1e-4,  # minimale wAUC-Steigerung
+    save_dir: str | Path | None = None,
+    save_csv: str | Path | None = None,
+    patience: int = 5,
+    min_delta: float = 1e-4,
     use_tqdm: bool = True,
     show_summary: bool = False,
 ) -> Tuple[pd.DataFrame, Dict]:
@@ -155,14 +167,12 @@ def run_experiment(
 
     • Speichert bestes Modell nach *val_wauc*
     • Early-Stopping, History-CSV, Checkpoint optional
-    • Keine Prints – alle Infos in Rückgabewerten
+    • Fortschritt optional mit tqdm + Blockname
 
     Returns
     -------
     hist_df : pd.DataFrame
-        epoch, train_loss, train_acc, val_loss, val_acc, val_wauc
-    summary : dict
-        best_val_wauc, best_epoch, final_*, early_stopped, best_checkpoint
+    summary : dict mit allen wichtigen Resultaten
     """
     # ───────── Vorbereitung ─────────
     device_req = torch.device(device)
@@ -195,14 +205,16 @@ def run_experiment(
             print("⚠️  torchinfo summary failed:", exc)
 
     history = {k: [] for k in ("epoch", "train_loss", "train_acc", "val_loss", "val_acc", "val_wauc")}
-
     best_wauc: float = 0.0
     best_ckpt: Optional[Path] = None
     epochs_no_improve = 0
 
     # ───────── Trainings-Loop ─────────
     for epoch in range(1, num_epochs + 1):
-        tl, ta = _train_one_epoch(net, train_loader, criterion, optimizer, device, use_tqdm=use_tqdm, desc=f"Ep {epoch}/{num_epochs}")
+        # Fortschritt klar erkennbar mit Blocknamen
+        ep_desc = f"[{run_name}] Ep {epoch}/{num_epochs}"
+
+        tl, ta = _train_one_epoch(net, train_loader, criterion, optimizer, device, use_tqdm=use_tqdm, desc=ep_desc)
         vl, va = _validate(net, val_loader, criterion, device)
 
         # wAUC berechnen
@@ -236,7 +248,8 @@ def run_experiment(
         else:
             epochs_no_improve += 1
             if epochs_no_improve >= patience:
-                break  # Early-Stopping
+                print(f"⏹️  Early stopping nach {epoch} Epochen.")
+                break
 
     # ───────── Resultate ─────────
     hist_df = pd.DataFrame(history)
