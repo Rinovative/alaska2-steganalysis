@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import numpy as np
+from scipy.special import softmax
 from sklearn.metrics import (
     accuracy_score,
     confusion_matrix,
@@ -9,55 +10,37 @@ from sklearn.metrics import (
 )
 
 
-# ────────────────────────────────────────────────────────────────
-def _safe_softmax(logits: np.ndarray, axis: int = 1) -> np.ndarray:
+def weighted_auc(y_true, y_pred):
     """
-    Mini-Softmax in NumPy – fällt zurück, falls die Eingabe noch Logits sind.
+    ALASKA2 – Weighted AUC
+    • Binär  : y_true ∈ {0,1}, y_pred ∈ ℝ
+    • 4-Klassig: y_true ∈ {0,1,2,3}, y_pred ∈ ℝ^{N×4}  (Cover=0, Stego=1–3)
+    Gewichtung: TPR-Abschnitt 0-0.4 doppelt, Rest einfach.
     """
-    z = logits - logits.max(axis=axis, keepdims=True)  # stab.
-    exp_z = np.exp(z)
-    return exp_z / exp_z.sum(axis=axis, keepdims=True)
-
-
-def weighted_auc(y_true: np.ndarray, y_pred: np.ndarray) -> float:
-    """
-    ALASKA2-spezifische Weighted AUC.
-
-    Gewichtung: TPR-Bereich [0, 0.4] doppelt so stark wie [0.4, 1].
-
-    Akzeptiert:
-      • binär:  y_true ∈ {0,1},     y_pred ∈ ℝ   (P(Stego))
-      • 4-Klassig: y_true ∈ {0,1,2,3}, y_pred ∈ ℝ^{N×4} (Logits o. Softmax)
-
-    Kollabiert intern automatisch auf Cover vs. Stego.
-    """
-    # ---------- Auto-Kollaps auf binär ----------
-    if y_pred.ndim == 2 and y_pred.shape[1] == 4:
-        # Logits → Softmax, falls Zeilensumme ≠ 1
+    # ── 4-Klasseneingabe → P(Stego) ──────────────────────────────────────────────
+    if y_pred.ndim == 2:  # erwartet Form (N,4)
         if not np.allclose(y_pred.sum(1), 1.0, atol=1e-3):
-            probs = _safe_softmax(y_pred, axis=1)
-        else:
-            probs = y_pred
-        y_pred = probs[:, 1:].sum(1)  # P(Stego)
+            y_pred = softmax(y_pred, axis=1)  # Logits → Softmax
+        y_pred = y_pred[:, 1:].sum(1)  # Stego-Wahrscheinlichkeit
+    y_true = (y_true != 0).astype(int)  # Cover=0, Stego=1
 
-    # y_true 0/1 erstellen (Cover=0, Stego=1)
-    if y_true.max() > 1 or y_true.min() < 0:
-        y_true = (y_true != 0).astype(int)
-
-    # ---------- Weighted AUC wie bisher ----------
-    tpr_thresholds = [0.0, 0.4, 1.0]
-    weights = [2, 1]
-
+    # ── ROC-Kurve ───────────────────────────────────────────────────────────────
     fpr, tpr, _ = roc_curve(y_true, y_pred)
-    auc = 0.0
-    for i, w in enumerate(weights):
-        y_min, y_max = tpr_thresholds[i], tpr_thresholds[i + 1]
-        mask = (tpr >= y_min) & (tpr <= y_max)
-        seg_fpr = np.concatenate(([y_min], fpr[mask], [y_max]))
-        seg_tpr = np.concatenate(([y_min], tpr[mask], [y_max]))
-        auc += w * np.trapz(seg_tpr, seg_fpr)
+    fpr = np.concatenate(([0.0], fpr, [1.0]))
+    tpr = np.concatenate(([0.0], tpr, [1.0]))
 
-    return auc / sum(weights)
+    # ── FPR bei TPR = 0.4 (lineare Interpolation) ──────────────────────────────
+    fpr_04 = np.interp(0.4, tpr, fpr)
+
+    # Segment 1: 0 ≤ TPR ≤ 0.4  (Gewicht 2)
+    mask1 = tpr <= 0.4
+    auc1 = np.trapz(np.concatenate((tpr[mask1], [0.4])), np.concatenate((fpr[mask1], [fpr_04])))
+
+    # Segment 2: 0.4 ≤ TPR ≤ 1  (Gewicht 1)
+    mask2 = tpr >= 0.4
+    auc2 = np.trapz(np.concatenate(([0.4], tpr[mask2])), np.concatenate(([fpr_04], fpr[mask2])))
+
+    return (2 * auc1 + auc2) / 3
 
 
 # ────────────────────────────────────────────────────────────────

@@ -87,7 +87,6 @@ def evaluate_and_display_model(
     ]
     eval_scores = [
         toggle_eval("3-1. ROC-Kurve", wrap_no_df(model.plot_roc_curves, curves=[roc_dict])),
-        toggle_eval("3-2. Score-Verteilung", wrap_no_df(model.plot_score_histogram, y_prob=y_prob, y_true=y_true)),
     ]
     eval_table = [
         # auch hier df wird geschluckt

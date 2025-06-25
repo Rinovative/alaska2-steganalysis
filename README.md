@@ -22,13 +22,15 @@ Primärer Datensatz ist der **ALASKA2-Datensatz**, ein Benchmark für moderne Bi
 Da ALASKA2 aus Lizenzgründen nicht frei verfügbar ist, wird für Demonstrationszwecke ein **synthetisches Ersatz-Datensatz** auf Basis des **PD12M-Datensatzes** bereitgestellt.  
 Der Code passt sich automatisch an den verfügbaren Datensatz an.
 
-Das Projekt umfasst:
+Das Repository enthält eine vollständige, modulare Pipeline zur Steganalyse, bestehend aus:
+- synthetische Stego-Erzeugung: automatisierte Generierung von Stego-Varianten (JMiPOD, JUNIWARD, UERD) auf Basis unmanipulierter JPEGs
+- strukturierte explorative Datenanalyse (EDA): Analyse von DCT-Koeffizienten, JPEG-Parametern, Visualisierung von Stego-Effekten
+- Trainings-Framework für CNN-Modelle: u. a. TinyCNN und EfficientNet mit Y- oder YCbCr-Kanälen, layerweises Finetuning
+- Hyperparameter-Optimierung mit Optuna
+- Evaluation mit Weighted AUC, Confusion Matrix, ROC und weiteren Metriken
+- komplette Colab-Kompatibilität mit automatischem Setup und GPU-Unterstützung
 
-- Falls der ALASKA2-Datensatz nicht vorhanden ist, die Erstellung synthetischer Stego-Varianten (JMiPOD, JUNIWARD, UERD),
-- strukturierte explorative Datenanalyse (EDA),
-- Training und Hyperparametertuning von CNN-basierten Modellen zur Steganalyse,
-- Evaluation und Visualisierung der Ergebnisse.
-
+*Die enthaltenen Modelle wurden auf einem Subsample (1–10 %) des ALASKA2-Datensatzes trainiert.*
 ---
 
 ## ⚙️ Lokale Ausführung

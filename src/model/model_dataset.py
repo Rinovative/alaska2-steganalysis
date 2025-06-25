@@ -1,8 +1,84 @@
+import random
+
 import jpegio as jio
 import numpy as np
 import torch
 from PIL import Image
 from torch.utils.data import Dataset
+
+
+class RandomGridShuffle:
+    def __init__(self, grid_size=8):
+        self.grid_size = grid_size
+
+    def __call__(self, img: Image.Image) -> Image.Image:
+        w, h = img.size
+        if w % self.grid_size != 0 or h % self.grid_size != 0:
+            raise ValueError(f"Bildgrösse muss durch {self.grid_size} teilbar sein")
+
+        bw, bh = w // self.grid_size, h // self.grid_size
+        blocks = []
+        for y in range(self.grid_size):
+            for x in range(self.grid_size):
+                box = (x * bw, y * bh, (x + 1) * bw, (y + 1) * bh)
+                blocks.append(img.crop(box))
+
+        random.shuffle(blocks)
+
+        new_img = Image.new(img.mode, (w, h))
+        for i, block in enumerate(blocks):
+            x = (i % self.grid_size) * bw
+            y = (i // self.grid_size) * bh
+            new_img.paste(block, (x, y))
+
+        return new_img
+
+
+class RGBImageDataset(Dataset):
+    """
+    Dataset für Bildmodelle (z. B. EfficientNet, TinyCNN).
+    Lädt **RGB**-Bilddaten aus JPEG-Dateien und gibt (Tensor, Label) zurück.
+
+    Args:
+        dataframe (pd.DataFrame):
+            Muss eine 'path'-Spalte und eine Label-Spalte enthalten.
+        transform (callable, optional):
+            Bild-Transform (z. B. `ToTensor` + `Normalize`).
+        target_column (str):
+            Spaltenname der Zielvariable (z. B. "label").
+    """
+
+    def __init__(self, dataframe, transform=None, target_column: str = "label"):
+        self.df = dataframe.reset_index(drop=True)
+        self.transform = transform
+        self.target_column = target_column
+
+        # Label-Dtype automatisch wählen
+        dtype_kind = self.df[self.target_column].dtype.kind
+        if dtype_kind == "f":  # float → binär (BCEWithLogitsLoss)
+            self.label_dtype = torch.float32
+        elif dtype_kind in {"i", "u"}:  # int/uint → (multi-)klassig (CrossEntropy)
+            self.label_dtype = torch.long
+        else:
+            raise ValueError(f"Unbekannter Datentyp für Labels: {self.df[self.target_column].dtype}")
+
+    def __len__(self) -> int:
+        return len(self.df)
+
+    def __getitem__(self, idx: int) -> tuple[torch.Tensor, torch.Tensor]:
+        row = self.df.iloc[idx]
+
+        # 1) Bild in **RGB** lesen
+        image = Image.open(row["path"]).convert("RGB")
+
+        # 2) Optionalen Transform anwenden
+        if self.transform:
+            image = self.transform(image)
+
+        # 3) Label in passenden Tensor casten
+        label = torch.tensor(row[self.target_column], dtype=self.label_dtype)
+
+        return image, label
 
 
 class YChannelDataset(Dataset):
@@ -74,7 +150,7 @@ class YCbCrImageDataset(Dataset):
 
 class DCTCoefficientDataset(Dataset):
     """
-    Dataset für Modelle im DCT-Raum (z. B. SRNet).
+    Dataset für Modelle im DCT-Raum.
     Lädt DCT-Koeffizienten (ein Kanal) als Float32-Tensor [1, H, W].
 
     Args:
