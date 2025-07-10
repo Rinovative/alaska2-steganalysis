@@ -7,7 +7,86 @@ from PIL import Image
 from torch.utils.data import Dataset
 
 
+class AlignedDeterministicCrop:
+    """
+    Führt einen deterministischen, block-alignierten Crop aus,
+    dessen Position aus einem Hash des Bildinhalts abgeleitet wird.
+
+    Args:
+        size (int): Zielgröße (z. B. 256)
+        block_size (int): Blockgröße (z. B. 8)
+    """
+
+    def __init__(self, size: int, block_size: int = 8):
+        self.size = size
+        self.block_size = block_size
+
+    def __call__(self, img: Image.Image) -> Image.Image:
+        w, h = img.size
+        x_max = (w - self.size) // self.block_size
+        y_max = (h - self.size) // self.block_size
+
+        img.load()
+        img_bytes = img.tobytes()
+        seed = int.from_bytes(img_bytes[:64], "little", signed=False) % (2**32)
+        rnd = random.Random(seed)
+
+        gx = rnd.randint(0, x_max) * self.block_size
+        gy = rnd.randint(0, y_max) * self.block_size
+
+        return img.crop((gx, gy, gx + self.size, gy + self.size))
+
+
+class AlignedRandomCrop:
+    """
+    Führt einen deterministischen oder zufälligen, block-ausgerichteten Crop aus.
+
+    Wenn `seed` gesetzt wird, ist der Crop reproduzierbar – z. B. nützlich in Validierung/Test,
+    um unterschiedliche Bildbereiche deterministisch zu betrachten (z. B. am Rand bei UERD).
+
+    Args:
+        size (int): Zielgröße (z. B. 256)
+        block_size (int): DCT-Blockgröße (z. B. 8)
+        seed (int, optional): Optionaler Seed zur Reproduzierbarkeit
+    """
+
+    def __init__(self, size: int, block_size: int = 8, seed: int = None):
+        self.size = size
+        self.block_size = block_size
+        self.seed = seed
+
+    def __call__(self, img: Image.Image) -> Image.Image:
+        w, h = img.size
+        assert w >= self.size and h >= self.size
+
+        x_max = (w - self.size) // self.block_size
+        y_max = (h - self.size) // self.block_size
+
+        if self.seed is not None:
+            rnd = random.Random(self.seed)
+            gx = rnd.randint(0, x_max) * self.block_size
+            gy = rnd.randint(0, y_max) * self.block_size
+        else:
+            gx = random.randint(0, x_max) * self.block_size
+            gy = random.randint(0, y_max) * self.block_size
+
+        return img.crop((gx, gy, gx + self.size, gy + self.size))
+
+
 class RandomGridShuffle:
+    """
+    Zerteilt ein quadratisches Bild in ein Raster aus gleich großen Blöcken (grid_size × grid_size)
+    und mischt diese zufällig neu an. Die Blockinhalte bleiben erhalten, nur ihre Position ändert sich.
+
+    Dies zerstört den semantischen Bildinhalt, erhält aber die lokalen DCT-Strukturen – ideal zur
+    Trennung von Bildinhalt und Stego-Signatur in JPEG-Steganalyse.
+
+    Achtung: Bildbreite und -höhe müssen exakt durch grid_size teilbar sein.
+
+    Args:
+        grid_size (int): Anzahl der Blöcke pro Bildseite (z. B. 8 → 8×8 Raster).
+    """
+
     def __init__(self, grid_size=8):
         self.grid_size = grid_size
 

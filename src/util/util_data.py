@@ -1,16 +1,16 @@
 from __future__ import annotations
 
 # Standard library
-import heapq
 import random
 import shutil
 import urllib.request
 import zipfile
+from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from io import BytesIO
 from itertools import islice
 from pathlib import Path
-from typing import Dict
+from typing import Dict, Optional
 
 # Third-party libraries
 import clip
@@ -112,6 +112,8 @@ def build_pd12m_like_reference(
     ref_dir: str = "data/raw/alaska2-image-steganalysis/Cover",
     batch_size: int = 32,
     ref_count: int = 300,
+    initial_fetch: int = 10_000,
+    force_new_generation: bool = False,
 ) -> str:
     """
     Erzeugt einen ALASKA2-ähnlichen CC0-Datensatz aus PD12M:
@@ -122,7 +124,7 @@ def build_pd12m_like_reference(
     """
     # 0) Check ob schon Bilder vorhanden
     dataset_dir = Path(out_root) / "Cover"
-    if dataset_dir.exists() and any(dataset_dir.glob("*.jpg")):
+    if dataset_dir.exists() and any(dataset_dir.glob("*.jpg")) and not force_new_generation:
         return f"✅ In '{dataset_dir}' existieren bereits Bilder. Keine neue Generierung nötig."
 
     # 1) CLIP-Setup
@@ -146,12 +148,15 @@ def build_pd12m_like_reference(
     ref_emb = torch.cat(embs, dim=0).numpy().astype("float32")
     faiss.normalize_L2(ref_emb)
 
-    # 3) PD12M-URLs (erste scan_limit)
+    # 3) PD12M-URLs (initial_fetch, dann shuffle, dann scan_limit)
     ds_stream = load_dataset("Spawning/PD12M", split="train", streaming=True)
-    urls = [row["url"] for row in tqdm(islice(ds_stream, scan_limit), total=scan_limit, desc="PD12M-URLs laden")]
+    raw_urls = [row["url"] for row in tqdm(islice(ds_stream, initial_fetch), total=initial_fetch, desc="PD12M-URLs laden (raw)")]
 
-    # 4) Batch-Embedding + kNN-Heap
-    def download_and_preprocess(url: str) -> torch.Tensor | None:
+    random.shuffle(raw_urls)
+    urls = raw_urls[:scan_limit]
+
+    # 4) Batch-Embedding + Clustering
+    def download_and_preprocess(url: str) -> Optional[torch.Tensor]:
         try:
             r = requests.get(url, timeout=5)
             img = Image.open(BytesIO(r.content)).convert("RGB")
@@ -159,7 +164,8 @@ def build_pd12m_like_reference(
         except Exception:
             return None
 
-    heap: list[tuple[float, str]] = []
+    clusters = defaultdict(list)
+
     for i in tqdm(range(0, len(urls), batch_size), desc="Batch Embedding"):
         batch_urls = urls[i : i + batch_size]
 
@@ -169,21 +175,40 @@ def build_pd12m_like_reference(
 
         if not imgs:
             continue
+
         batch_tensor = torch.stack(imgs).to(device)
 
         with torch.no_grad():
             emb_batch = model.encode_image(batch_tensor).cpu().numpy().astype("float32")
         faiss.normalize_L2(emb_batch)
 
-        sims = (emb_batch @ ref_emb.T).max(axis=1)
-        for sim, url in zip(sims, batch_urls):
-            entry = (float(sim), url)
-            if len(heap) < cover_count:
-                heapq.heappush(heap, entry)
-            else:
-                heapq.heappushpop(heap, entry)
+        sims_matrix = emb_batch @ ref_emb.T  # shape: (batch_size, ref_count)
+        max_sims = sims_matrix.max(axis=1)
+        max_indices = sims_matrix.argmax(axis=1)
 
-    best_urls = [u for _, u in sorted(heap, key=lambda t: -t[0])]
+        for sim, url, ref_idx in zip(max_sims, batch_urls, max_indices):
+            clusters[int(ref_idx)].append((float(sim), url))
+
+    # Nun pro Cluster die Top-N auswählen
+    cluster_count = len(clusters)
+    per_cluster = max(1, cover_count // cluster_count)
+
+    selected = []
+    for ref_idx, items in clusters.items():
+        items_sorted = sorted(items, key=lambda x: -x[0])
+        selected += [url for _, url in items_sorted[:per_cluster]]
+
+    # Falls noch nicht genug → Rest auffüllen
+    if len(selected) < cover_count:
+        all_candidates = []
+        for items in clusters.values():
+            all_candidates.extend(items)
+        all_candidates_sorted = sorted(all_candidates, key=lambda x: -x[0])
+        needed = cover_count - len(selected)
+        additional = [url for _, url in all_candidates_sorted if url not in selected][:needed]
+        selected += additional
+
+    best_urls = selected[:cover_count]
 
     # 5) Top-URLs final speichern mit garantierter JPEG-Kompression
     dataset_dir.mkdir(parents=True, exist_ok=True)
@@ -192,14 +217,10 @@ def build_pd12m_like_reference(
             r = requests.get(url, timeout=5)
             original = Image.open(BytesIO(r.content)).convert("RGB")
 
-            # Garantierte Neukodierung: konvertieren zu Array → Image
             img = Image.fromarray(np.array(original))
             img = img.resize((512, 512), Image.LANCZOS)
 
-            # Zufällige JPEG-Qualität aus {75, 90, 95}
             quality = random.choice([75, 90, 95])
-
-            # Speichern
             img.save(dataset_dir / f"{idx + 1:05d}.jpg", "JPEG", quality=quality)
 
         except Exception:
@@ -258,8 +279,9 @@ def generate_conseal_stego(
         jpeg = jpeglib.read_dct(str(path))
 
         for name, fn in variant_fns.items():
-            jpeg.Y = fn(im0, jpeg, difficulty, seed + i)
-            jpeg.write_dct(str(variant_paths[name] / path.name))
+            jpeg_variant = jpeg.copy()
+            jpeg_variant.Y = fn(im0, jpeg, difficulty, seed + i)
+            jpeg_variant.write_dct(str(variant_paths[name] / path.name))
 
     return f"✅ {len(files)} Bilder generiert in {', '.join(variant_fns.keys())} (difficulty={difficulty})"
 

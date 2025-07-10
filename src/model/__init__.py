@@ -1,11 +1,16 @@
 # flake8: noqa
 
 from .model_dataset import (
+    AlignedDeterministicCrop,
+    AlignedRandomCrop,
     DCTCoefficientDataset,
     FusionDataset2,
     FusionDataset4,
     FusionDataset6,
+    RandomGridShuffle,
+    RGBImageDataset,
     YCbCrImageDataset,
+    YChannelDataset,
 )
 from .model_evaluate import evaluate_and_display_model
 from .model_metrics import (
@@ -29,6 +34,11 @@ from .model_train import (
 
 __all__ = [
     # Datasets
+    "AlignedDeterministicCrop",
+    "AlignedRandomCrop",
+    "RandomGridShuffle",
+    "RGBImageDataset",
+    "YChannelDataset",
     "YCbCrImageDataset",
     "DCTCoefficientDataset",
     "FusionDataset2",
