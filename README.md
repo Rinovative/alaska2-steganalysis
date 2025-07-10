@@ -5,9 +5,9 @@ _Interaktives Jupyter Notebook direkt im Browser öffnen (via Colab)_
 > Wenn der originale ALASKA2-Datensatz nicht verfügbar ist, wird automatisch ein synthetisches Demo-Datensatz geladen.
 > Das synthetische Demo-Subset enthält keine echten Nachrichten, sondern simuliert typische Frequenzmodifikationen echter Steganographieverfahren.
 
-# Deep Learning für Steganalyse – ALASKA2-Datensatz (Walhfachprojekt)
+# Deep Learning für Steganalyse – ALASKA2-Datensatz (Wahlfachprojekt)
 
-**Walhfachprojekt** im Rahmen des Studiengangs  
+**Wahlfachprojekt** im Rahmen des Studiengangs  
 **BSc Systemtechnik – Vertiefung Computational Engineering**  
 **Frühjahr 2025** – OST – Ostschweizer Fachhochschule  
 **Autor:** Rino Albertin
