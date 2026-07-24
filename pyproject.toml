@@ -9,7 +9,7 @@ description = "Reproducible ALASKA2 JPEG steganalysis baselines with a public PD
 readme = "README.md"
 requires-python = ">=3.11,<3.13"
 license = "MIT"
-authors = [{ name = "Rino Albertin" }]
+authors = [{ name = "Rino M. Albertin" }]
 keywords = ["steganalysis", "jpeg", "deep-learning", "alaska2"]
 dependencies = [
   "ipython>=9.0,<10",

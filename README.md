@@ -1,12 +1,12 @@
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Rinovative/alaska2-steganalysis/blob/main/ANN_Projekt_Rino_Albertin_Steganalyse.ipynb)  
 _Das vollständige Jupyter Notebook direkt im Browser mit Google Colab öffnen_
 
-# Deep Learning für Steganalyse mit ALASKA2
-### *Wahlfachprojekt Applied Neural Networks – BSc Systemtechnik, Frühjahr 2025*
+# Deep Learning für Steganalyse mit ALASKA2  
+### *Wahlfachprojekt Applied Neural Networks – BSc Systemtechnik, Frühjahr 2025*  
 
-Bachelor of Science in Systemtechnik – Vertiefung Computational Engineering
-OST – Ostschweizer Fachhochschule
-**Autor:** Rino M. Albertin
+Bachelor of Science in Systemtechnik – Vertiefung Computational Engineering  
+OST – Ostschweizer Fachhochschule  
+**Autor:** Rino M. Albertin  
 
 ## 📌 Projektübersicht
 
@@ -31,9 +31,9 @@ Das Projekt vergleicht zwei binäre Klassifikationsmodelle:
 
 Beide Modelle verwendeten dieselben quellenweise gruppierten Daten:
 
-- 6 000 Trainingsgruppen mit 24 000 Bildern;
-- 750 Validierungsgruppen mit 3 000 Bildern;
-- 7 500 finale Testgruppen mit 30 000 Bildern;
+- 6'000 Trainingsgruppen mit 24'000 Bildern;
+- 750 Validierungsgruppen mit 3'000 Bildern;
+- 7'500 finale Testgruppen mit 30'000 Bildern;
 - Seed 42 für die reproduzierbare Gruppierung und Auswahl.
 
 Eine Quellgruppe umfasst jeweils das unveränderte Cover-Bild und die drei zugehörigen Stego-Varianten JMiPOD, JUNIWARD und UERD. Alle Varianten einer Quelle werden stets gemeinsam einem Split zugeordnet. Dadurch kann derselbe Bildinhalt nicht gleichzeitig in Training, Validierung und Test auftreten.
@@ -80,22 +80,22 @@ Die explorative Datenanalyse untersucht die Bilder auf mehreren Darstellungseben
 - JPEG-Qualität und Quantisierungstabellen
 - DCT-Koeffizienten und methodenspezifische Flip-Muster
 
-Für ALASKA2 verwendet die EDA eine separate, deterministische Stichprobe von 7 500 vollständigen Quellgruppen. Diese Stichprobe beeinflusst weder die Trainings- noch die Testmitgliedschaften.
+Für ALASKA2 verwendet die EDA eine separate, deterministische Stichprobe von 7'500 vollständigen Quellgruppen. Diese Stichprobe beeinflusst weder die Trainings- noch die Testmitgliedschaften.
 
 </details>
 
 <details>
 <summary><strong>🧭 Datenaufbereitung und gruppierte Splits</strong></summary>
 
-Die Datenaufbereitung indexiert zunächst alle 75 000 vollständigen ALASKA2-Quellgruppen mit insgesamt 300 000 Bildern.
+Die Datenaufbereitung indexiert zunächst alle 75'000 vollständigen ALASKA2-Quellgruppen mit insgesamt 300'000 Bildern.
 
 Anschliessend werden mit Seed 42 drei disjunkte Reservoirs erzeugt:
 
-- 60 000 Trainingsgruppen
-- 7 500 Validierungsgruppen
-- 7 500 finale Testgruppen
+- 60'000 Trainingsgruppen
+- 7'500 Validierungsgruppen
+- 7'500 finale Testgruppen
 
-Aus dem Trainingsreservoir werden 6 000 Gruppen für das dokumentierte Training ausgewählt. Aus dem Validierungsreservoir werden 750 Gruppen für die Modellauswahl verwendet. Der finale Testsplit bleibt vollständig erhalten.
+Aus dem Trainingsreservoir werden 6'000 Gruppen für das dokumentierte Training ausgewählt. Aus dem Validierungsreservoir werden 750 Gruppen für die Modellauswahl verwendet. Der finale Testsplit bleibt vollständig erhalten.
 
 Die Gruppierung nach Quellidentität verhindert Information Leakage zwischen inhaltlich zusammengehörigen Cover- und Stego-Bildern.
 
@@ -117,7 +117,7 @@ Das Trainingsframework stellt für beide Modelle gemeinsame Abläufe bereit:
 
 - getrennte Trainings-, Validierungs- und Testloader
 - reproduzierbare Seeds
-- eine klassengewichtete binäre Loss (`BCEWithLogitsLoss`, `pos_weight = 1/3`), welche die drei Stego-Varianten gemeinsam gegenüber der Cover-Klasse ausbalanciert
+- eine klassengewichtete binäre Verlustfunktion (`BCEWithLogitsLoss` mit `pos_weight = 1/3`), welche das Verhältnis der drei Stego-Varianten zur Cover-Klasse ausgleicht
 - Auswahl anhand der Validierungs-Weighted-AUC
 - Early Stopping
 - Speicherung und Wiederherstellung des besten Modellzustands
@@ -158,22 +158,20 @@ Die DCT-Analyse zeigt dagegen methodenspezifische Flip-Muster. Die Änderungen k
 
 ### 📈 Quantitative Ergebnisse
 
-Für den datenidentischen 10-%-Vergleich wurden beide Modelle auf denselben 6 000 von 60 000 Trainingsgruppen trainiert und anhand derselben 750 von 7 500 Validierungsgruppen ausgewählt. Die abschliessende Evaluation erfolgte auf dem vollständigen gemeinsamen Testsplit mit 7 500 Gruppen und 30 000 Bildern.
+Für den datenidentischen 10-%-Vergleich wurden beide Modelle auf denselben 6'000 von 60'000 Trainingsgruppen trainiert und anhand derselben 750 von 7'500 Validierungsgruppen ausgewählt. Die abschliessende Evaluation erfolgte auf dem vollständigen gemeinsamen Testsplit mit 7'500 Gruppen und 30'000 Bildern.
 
-| Modell | Trainingsgruppen | Trainingsbilder | Weighted AUC (Validierung) | Testgenauigkeit | Weighted AUC (Test) | Laufzeit |
-|---|---:|---:|---:|---:|---:|---:|
-| TinyCNN | 6 000 | 24 000 | 0.589 | 0.483 | **0.589** | 27 min 55 s |
-| EfficientNet-B0 | 6 000 | 24 000 | **0.590** | 0.257 | 0.586 | 54 min 02 s |
+| Modell | Weighted AUC (Validierung) | Weighted AUC (Test) | Laufzeit |
+|---|---:|---:|---:|
+| TinyCNN | 0.589254 | **0.589367** | 27 min 55 s |
+| EfficientNet-B0 | **0.589604** | 0.586146 | 54 min 02 s |
 
-EfficientNet-B0 erreichte die geringfügig höhere Weighted AUC der Validierung, während TinyCNN auf dem finalen Testsplit um rund 0.003 Weighted AUC vorne lag. Die niedrige EfficientNet-B0-Testgenauigkeit ist auf das nahezu vollständige Cover-Entscheidungsverhalten am festen Klassifikationsschwellenwert zurückzuführen. Die schwellenwertübergreifende Weighted AUC ist für diesen Vergleich deshalb aussagekräftiger als die Testgenauigkeit.
+EfficientNet-B0 erreichte auf der Validierung den geringfügig höheren Wert. Dieser Vorteil übertrug sich jedoch nicht auf den Testsplit: Dort lag TinyCNN um 0.003221 Weighted-AUC-Punkte vorne und benötigte annähernd nur die Hälfte der Laufzeit. Aufgrund des einzelnen Versuchslaufs lässt sich daraus keine statistisch gesicherte Überlegenheit einer Architektur ableiten.
 
-Die zentrale Forschungsfrage ist für die untersuchte Konfiguration klar zu beantworten: Mit TinyCNN und EfficientNet-B0 konnte keine zuverlässige Erkennung der subtilen steganographischen Veränderungen erreicht werden. Die Testwerte von 0.589 beziehungsweise 0.586 liegen zwar über dem Zufallsniveau, zeigen jedoch nur eine begrenzte Trennfähigkeit.
+Die zentrale Forschungsfrage ist für die untersuchte Konfiguration klar zu beantworten: Mit TinyCNN und EfficientNet-B0 wurde keine zuverlässige Erkennung der subtilen steganographischen Veränderungen erreicht. Beide Testwerte liegen nahe am Referenzwert von rund 0.585714 für eine diagonale ROC-Kurve unter der verwendeten ALASKA2-Gewichtung.
 
-Eine zentrale Einschränkung dieses 10-%-Versuchs ist der reduzierte Trainingsumfang. Steganographische Veränderungen sind sehr schwach und stark vom jeweiligen Bildinhalt abhängig. Die verwendeten 6 000 Trainingsgruppen konnten die erforderliche Bildvielfalt möglicherweise nicht ausreichend abdecken. Der Einfluss des Datenumfangs wurde im vorliegenden Experiment jedoch nicht isoliert untersucht.
+Eine wesentliche Einschränkung ist der reduzierte Trainingsumfang von 6'000 Gruppen beziehungsweise 10 % des Trainingsreservoirs. Die geringere Bildvielfalt könnte die Generalisierung eingeschränkt haben wobei der Einfluss der Datenmenge jedoch nicht isoliert untersucht wurde.
 
-Die Ergebnisse belegen deshalb weder eine grundsätzliche Untauglichkeit der Architekturen noch eine statistisch gesicherte Überlegenheit eines Modells. Eine abschliessende Beurteilung würde insbesondere das Training mit dem vollständigen Trainingsreservoir, mehrere unabhängige Seeds und eine umfassendere Evaluationsstrategie erfordern.
-
-Die vollständige Methodik, Diskussion und interaktive Evaluation befinden sich in [Kapitel 5 des akademischen Notebooks](ANN_Projekt_Rino_Albertin_Steganalyse.ipynb).
+Die vollständige Methodik, modellbezogene Interpretation und interaktive Evaluation befinden sich in [Kapitel 5 des akademischen Notebooks](ANN_Projekt_Rino_Albertin_Steganalyse.ipynb).
 
 ## ⚙️ Lokale Ausführung
 
@@ -401,7 +399,7 @@ Checkpoints und Trainingsverläufe werden nach Datensatz, Modell und Laufkennung
 ├── .gitattributes                                                       # Repository-weite Dateiattribute
 ├── .gitignore                                                           # Ignoriert Daten und Laufzeitartefakte
 ├── ANN_Projekt_Rino_Albertin_Steganalyse.ipynb                          # Akademische Ausarbeitung
-├── LICENSE                                                              # MIT-Lizenz
+├── LICENSE.md                                                           # MIT-Lizenz
 ├── README.md                                                            # Projektübersicht und Ausführung
 ├── poetry.lock                                                          # Aufgelöste Abhängigkeiten
 ├── poetry.toml                                                          # Lokale Poetry-Konfiguration
