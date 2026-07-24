@@ -1,0 +1,4 @@
+{
+  "python.analysis.diagnosticMode": "workspace",
+  "python.testing.pytestEnabled": true
+}

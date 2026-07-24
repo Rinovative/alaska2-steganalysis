@@ -1,17 +1,29 @@
-# Alles ignorieren …
-**
-
-# … außer diesen Pfaden:
-!pyproject.toml
-!poetry.lock
-!src/
-!ANN_Projekt_Rino_Albertin_Steganalyse.ipynb
-!.devcontainer/
-
-# Temporäre & große Ordner ausschließen:
-data/
-images/
-.cache/
-.venv/
 .git/
-*.ipynb_checkpoints
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.pyright/
+.ruff_cache/
+.ipynb_checkpoints/
+.vscode/
+.idea/
+
+# Licensed data and generated artifacts stay in the runtime workspace only.
+data/
+cache/
+checkpoints/
+reports/
+artifacts/
+assets/
+
+# Local and downloaded leftovers.
+.env
+.env.*
+*.log
+*.tmp
+*.orig
+*.bak
+*.zip
+*.part

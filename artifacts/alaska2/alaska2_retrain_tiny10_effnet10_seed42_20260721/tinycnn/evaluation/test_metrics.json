@@ -1,0 +1,17 @@
+{
+  "confusion_matrix": [
+    [
+      4056,
+      3444
+    ],
+    [
+      12056,
+      10444
+    ]
+  ],
+  "evaluation_pass_count": 1,
+  "sample_count": 30000,
+  "test_accuracy": 0.48333333333333334,
+  "test_loss": 0.3465967475414276,
+  "test_weighted_auc": 0.5893674031746032
+}

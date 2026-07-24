@@ -1,28 +1,33 @@
 {
-    "name": "Stego-Dev",
+    "name": "alaska2-steganalysis",
     "build": {
         "dockerfile": "Dockerfile",
         "context": ".."
     },
     "runArgs": [
-        "--name",
-        "stego-container",
         "--gpus",
         "all",
         "--ipc",
         "host"
     ],
-    "workspaceFolder": "/app",
-    "workspaceMount": "source=${localWorkspaceFolder},target=/app,type=bind",
-    "mounts": [
-        "source=alaska2_data,target=/app/data/raw/alaska2-image-steganalysis,type=volume"
-    ],
+    "containerEnv": {
+        "POETRY_VIRTUALENVS_CREATE": "false",
+        "POETRY_VIRTUALENVS_IN_PROJECT": "false"
+    },
+    "workspaceFolder": "/workspaces/alaska2-steganalysis",
+    "postCreateCommand": "poetry install --with dev,notebook,optimization,generation --extras cuda --no-interaction --no-ansi",
     "customizations": {
         "vscode": {
+            "settings": {
+                "python.defaultInterpreterPath": "/opt/conda/bin/python",
+                "python-envs.workspaceSearchPaths": [],
+                "python-envs.terminal.autoActivationType": "off"
+            },
             "extensions": [
                 "ms-python.python",
                 "ms-python.vscode-pylance",
-                "ms-toolsai.jupyter"
+                "ms-toolsai.jupyter",
+                "openai.chatgpt"
             ]
         }
     }

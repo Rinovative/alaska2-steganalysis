@@ -1,37 +1,47 @@
-name: Linting
+name: Quality
 
-on: [push, pull_request]
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
 
 jobs:
-  lint:
+  cpu-quality:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
-    - name: Checkout Code
-      uses: actions/checkout@v3
+      - name: Check out repository
+        uses: actions/checkout@v6
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: 3.12
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: poetry
+          cache-dependency-path: poetry.lock
 
-    - name: Install Poetry
-      run: pip install poetry
+      - name: Install Poetry
+        run: pipx install poetry==2.4.1
 
-    - name: Install Dependencies
-      run: poetry install --with dev
+      - name: Validate project and lock metadata
+        run: poetry check
 
-    - name: Run isort
-      run: poetry run isort --check --diff --profile black .
+      - name: Install CPU quality environment
+        run: poetry install --with dev --no-interaction --no-ansi
 
-    - name: Run black
-      run: poetry run black --check --diff --line-length=150 . --exclude ".*\.ipynb"
+      - name: Check formatting
+        run: poetry run ruff format --check src tests
 
-    - name: Run flake8
-      run: poetry run flake8 --max-line-length=150 --ignore=E203,W503 --exclude=".venv,__pycache__,.pytest_cache,_safe"
+      - name: Lint
+        run: poetry run ruff check src tests
 
-    # - name: Run basedpyright
-    #   run: poetry run basedpyright --level error
+      - name: Type check
+        run: poetry run basedpyright
 
-    - name: Run complexipy
-      run: poetry run complexipy . --max-complexity 25
+      - name: Test on CPU
+        env:
+          CUDA_VISIBLE_DEVICES: ""
+        run: poetry run pytest

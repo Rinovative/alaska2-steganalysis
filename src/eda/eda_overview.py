@@ -1,29 +1,65 @@
-# src/eda/eda_overview.py
+"""
+===============================================================================
+eda_overview.py
+===============================================================================
+Dataset structure and distribution summaries.
+
+Responsibilities:
+  - Format a concise dataframe overview for notebook display.
+  - Plot class and JPEG quality distributions.
+
+Design principles:
+  - Functions return text or figures and do not display or save them.
+
+Boundaries:
+  - German figure text is retained for the protected academic notebook.
+
+Notes:
+  - Metadata columns are supplied by data.metadata.
+===============================================================================
+"""
+
+from __future__ import annotations
 
 import io
 
 import matplotlib.pyplot as plt
 import pandas as pd
+from matplotlib.figure import Figure
+
+__all__ = ["plot_class_distribution", "plot_jpeg_quality_distribution", "show_dataset_overview"]
 
 
 def show_dataset_overview(df: pd.DataFrame, dataset_name: str = "") -> str:
-    """
-    Gibt kombinierte Textausgabe von df.info() und df.describe(),
-    sowie gruppierte Statistiken nach label_name zurück.
+    """Format selected structure and descriptive statistics for notebook display.
 
-    Returns:
-        str: Formatierter Markdown-String
+    Parameters
+    ----------
+    df
+        Metadata dataframe containing the documented overview columns.
+    dataset_name
+        Human-readable dataset name included in the figure title.
+
+    Returns
+    -------
+    str
+        Markdown-oriented dataframe structure and statistics text.
+
+    Raises
+    ------
+    KeyError
+        If required overview or metadata columns are missing.
     """
     output = io.StringIO()
 
     print(f"## Datensatzübersicht: {dataset_name}", file=output)
 
-    # Struktur
+    # Selected-column structure.
     print("\n### Struktur ausgewählter Spalten", file=output)
     selected_cols = ["path", "label_name", "jpeg_quality", "width", "height", "q_y_00", "q_y_63"]
     df[selected_cols].info(buf=output)
 
-    # Gesamte Statistik
+    # Overall summary statistics.
     print("\n### Gesamte Statistik ausgewählter Spalten", file=output)
     summary_cols = [
         "jpeg_quality",
@@ -51,13 +87,13 @@ def show_dataset_overview(df: pd.DataFrame, dataset_name: str = "") -> str:
     ]
     print(df[summary_cols].describe().to_string(), file=output)
 
-    # Gruppierte Statistik nach Klasse
+    # Class-wise summary statistics.
     if "label_name" in df.columns:
         print("\n### Gruppierte Statistik nach Klasse ausgewählter Spalten", file=output)
 
-        # Optional: Nur bestimmte Spalten anzeigen
+        # Keep the grouped summary concise.
         summary_cols = ["width", "height", "mode", "q_y_00", "q_y_63"]
-        df_summary = df[summary_cols + ["label_name"]]
+        df_summary = df[[*summary_cols, "label_name"]]
 
         grouped = df_summary.groupby("label_name", observed=False).describe()
         print(grouped.to_string(), file=output)
@@ -65,9 +101,25 @@ def show_dataset_overview(df: pd.DataFrame, dataset_name: str = "") -> str:
     return output.getvalue()
 
 
-def plot_class_distribution(df: pd.DataFrame, dataset_name: str = "") -> plt.Figure:
-    """
-    Zeigt die Anzahl Bilder pro Klasse (Cover, JMiPOD, JUNIWARD, UERD).
+def plot_class_distribution(df: pd.DataFrame, dataset_name: str = "") -> Figure:
+    """Plot image counts for every observed class.
+
+    Parameters
+    ----------
+    df
+        Dataframe containing image paths and class labels.
+    dataset_name
+        Human-readable dataset name included in the figure title.
+
+    Returns
+    -------
+    matplotlib.figure.Figure
+        Class-count bar chart.
+
+    Raises
+    ------
+    KeyError
+        If the dataframe has no ``label_name`` column.
     """
     fig, ax = plt.subplots(figsize=(8, 5))
     df["label_name"].value_counts().sort_index().plot(kind="bar", ax=ax, color="skyblue", edgecolor="black")
@@ -78,10 +130,25 @@ def plot_class_distribution(df: pd.DataFrame, dataset_name: str = "") -> plt.Fig
     return fig
 
 
-def plot_jpeg_quality_distribution(df: pd.DataFrame, dataset_name: str = "") -> plt.Figure:
-    """
-    Zeigt die Verteilung der JPEG-Qualitätsstufen (75, 90, 95) pro Klasse.
-    Erwartet, dass `jpeg_quality` und `label_name` im DataFrame vorhanden sind.
+def plot_jpeg_quality_distribution(df: pd.DataFrame, dataset_name: str = "") -> Figure:
+    """Plot JPEG quality-level counts by observed class.
+
+    Parameters
+    ----------
+    df
+        Metadata dataframe containing class and JPEG quality columns.
+    dataset_name
+        Human-readable dataset name included in the figure title.
+
+    Returns
+    -------
+    matplotlib.figure.Figure
+        Grouped quality-level bar chart.
+
+    Raises
+    ------
+    KeyError
+        If class or JPEG quality columns are missing.
     """
     fig, ax = plt.subplots(figsize=(8, 5))
     df.groupby(["jpeg_quality", "label_name"], observed=False).size().unstack().plot(kind="bar", ax=ax)

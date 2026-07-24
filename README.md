@@ -1,187 +1,425 @@
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Rinovative/alaska2-steganalysis/blob/main/ANN_Projekt_Rino_Albertin_Steganalyse.ipynb)  
-_Interaktives Jupyter Notebook direkt im Browser öffnen (via Colab)_
+_Das vollständige Jupyter Notebook direkt im Browser mit Google Colab öffnen_
 
-> **Hinweis:**  
-> Wenn der originale ALASKA2-Datensatz nicht verfügbar ist, wird automatisch ein synthetisches Demo-Datensatz geladen.
-> Das synthetische Demo-Subset enthält keine echten Nachrichten, sondern simuliert typische Frequenzmodifikationen echter Steganographieverfahren.
+# Deep Learning für Steganalyse mit ALASKA2
+### *Wahlfachprojekt Applied Neural Networks – BSc Systemtechnik, Frühjahr 2025*
 
-# Deep Learning für Steganalyse – ALASKA2-Datensatz (Wahlfachprojekt)
+Bachelor of Science in Systemtechnik – Vertiefung Computational Engineering
+OST – Ostschweizer Fachhochschule
+**Autor:** Rino M. Albertin
 
-**Wahlfachprojekt** im Rahmen des Studiengangs  
-**BSc Systemtechnik – Vertiefung Computational Engineering**  
-**Frühjahr 2025** – OST – Ostschweizer Fachhochschule  
-**Autor:** Rino Albertin
+## 📌 Projektübersicht
 
----
+Dieses Projekt untersucht die Erkennung steganographischer Manipulationen in JPEG-Bildern mittels Deep Learning. Als primäre Datengrundlage dient der ALASKA2-Datensatz, ein Benchmark für moderne Verfahren der Bildsteganalyse.
 
-## 📌 Projektbeschreibung
+Die untersuchten Stego-Verfahren verändern keine unmittelbar sichtbaren Bildinhalte. Stattdessen werden ausgewählte JPEG-DCT-Koeffizienten so modifiziert, dass Informationen im Frequenzraum verborgen werden können. Die Analyse kombiniert deshalb visuelle Bildmerkmale, YCbCr-Farbkanäle, JPEG-Metadaten und DCT-basierte Eigenschaften.
 
-Dieses Projekt befasst sich mit der Erkennung steganographischer Manipulationen in JPEG-Bildern mittels Deep Learning.  
-Primärer Datensatz ist der **ALASKA2-Datensatz**, ein Benchmark für moderne Bildsteganalyseverfahren.
+Die zentrale Forschungsfrage lautet:
 
-Da ALASKA2 aus Lizenzgründen nicht frei verfügbar ist, wird für Demonstrationszwecke ein **synthetisches Ersatz-Datensatz** auf Basis des **PD12M-Datensatzes** bereitgestellt.  
-Der Code passt sich automatisch an den verfügbaren Datensatz an.
+> Wie zuverlässig lassen sich subtile steganographische Veränderungen in JPEG-Bildern mit einer kompakten TinyCNN-Architektur und einem vortrainierten EfficientNet-B0 unter identischen Datenbedingungen erkennen?
 
-Das Repository enthält eine vollständige, modulare Pipeline zur Steganalyse, bestehend aus:
-- synthetische Stego-Erzeugung: automatisierte Generierung von Stego-Varianten (JMiPOD, JUNIWARD, UERD) auf Basis unmanipulierter JPEGs
-- strukturierte explorative Datenanalyse (EDA): Analyse von DCT-Koeffizienten, JPEG-Parametern, Visualisierung von Stego-Effekten
-- Trainings-Framework für CNN-Modelle: u. a. TinyCNN und EfficientNet mit Y- oder YCbCr-Kanälen, layerweises Finetuning
-- Hyperparameter-Optimierung mit Optuna
-- Evaluation mit Weighted AUC, Confusion Matrix, ROC und weiteren Metriken
-- komplette Colab-Kompatibilität mit automatischem Setup und GPU-Unterstützung
+<details>
+<summary><strong>🎯 Untersuchungsdesign und Umfang</strong></summary>
 
-*Die enthaltenen Modelle wurden auf einem Subsample (1–10 %) des ALASKA2-Datensatzes trainiert.*
----
+Das Projekt vergleicht zwei binäre Klassifikationsmodelle:
+
+1. **TinyCNN**
+   Eine kompakte Referenzarchitektur, die ausschliesslich den Y-Kanal verarbeitet und mit blockausgerichteten Bildausschnitten sowie Tile-Shuffling trainiert wird.
+
+2. **EfficientNet-B0**
+   Ein ImageNet-vortrainiertes Modell mit angepasstem YCbCr-Eingang und stufenweisem Fine-Tuning einzelner Feature-Blöcke.
+
+Beide Modelle verwendeten dieselben quellenweise gruppierten Daten:
+
+- 6 000 Trainingsgruppen mit 24 000 Bildern;
+- 750 Validierungsgruppen mit 3 000 Bildern;
+- 7 500 finale Testgruppen mit 30 000 Bildern;
+- Seed 42 für die reproduzierbare Gruppierung und Auswahl.
+
+Eine Quellgruppe umfasst jeweils das unveränderte Cover-Bild und die drei zugehörigen Stego-Varianten JMiPOD, JUNIWARD und UERD. Alle Varianten einer Quelle werden stets gemeinsam einem Split zugeordnet. Dadurch kann derselbe Bildinhalt nicht gleichzeitig in Training, Validierung und Test auftreten.
+
+Die Modellauswahl erfolgt anhand der Weighted AUC auf dem Validierungssplit. Der gemeinsame Testsplit wird erst nach abgeschlossener Modellauswahl genau einmal pro Modell ausgewertet.
+
+Da der originale ALASKA2-Datensatz nicht frei weitergegeben werden darf, unterstützt das Projekt zusätzlich einen öffentlichen synthetischen Ersatzdatensatz auf Basis von PD12M. ALASKA2 und der Ersatzdatensatz bleiben vollständig getrennt und werden nicht miteinander vermischt.
+
+**Hinweis zum synthetischen Ersatzdatensatz:** Die im Projektworkflow als JMiPOD bezeichnete Kompatibilitätsklasse wird technisch mit nsF5 erzeugt. Sie ist deshalb wissenschaftlich nicht mit echtem ALASKA2-JMiPOD gleichzusetzen. Das synthetische Demo-Subset enthält keine echten Nachrichten, sondern simuliert typische Frequenzmodifikationen von Steganographieverfahren.
+
+</details>
+
+## 🧱 Projektkomponenten
+
+Das Repository ist in folgende fachliche Komponenten gegliedert
+
+<details>
+<summary><strong>🗂️ Datengrundlage und synthetischer Ersatzdatensatz</strong></summary>
+
+Der originale Datensatz wird unter `data/ALASKA2/` erwartet und umfasst vier Verzeichnisse:
+
+- `Cover`
+- `JMiPOD`
+- `JUNIWARD`
+- `UERD`
+
+Zusammengehörige Dateien besitzen in allen vier Klassen denselben Basisnamen. Die Pipeline indexiert ausschliesslich vollständige Quellgruppen.
+
+Wenn ALASKA2 nicht verfügbar ist, kann unter `data/PD12M/` ein öffentlicher synthetischer Ersatzdatensatz vorbereitet werden. Dieser enthält dieselbe Verzeichnisstruktur, wird jedoch vollständig getrennt von ALASKA2 verarbeitet.
+
+Die Datenquellenauswahl übergibt stets genau einen Dataset-Root an die Indexierung, die Split-Erzeugung und die DataLoader.
+
+</details>
+
+<details>
+<summary><strong>🔬 Explorative Datenanalyse</strong></summary>
+
+Die explorative Datenanalyse untersucht die Bilder auf mehreren Darstellungsebenen:
+
+- Klassen- und Datensatzstruktur
+- visuelle Cover- und Stego-Beispiele
+- Verteilungen der RGB- und YCbCr-Kanäle
+- lokale Unterschiede zwischen Cover- und Stego-Bildern
+- JPEG-Qualität und Quantisierungstabellen
+- DCT-Koeffizienten und methodenspezifische Flip-Muster
+
+Für ALASKA2 verwendet die EDA eine separate, deterministische Stichprobe von 7 500 vollständigen Quellgruppen. Diese Stichprobe beeinflusst weder die Trainings- noch die Testmitgliedschaften.
+
+</details>
+
+<details>
+<summary><strong>🧭 Datenaufbereitung und gruppierte Splits</strong></summary>
+
+Die Datenaufbereitung indexiert zunächst alle 75 000 vollständigen ALASKA2-Quellgruppen mit insgesamt 300 000 Bildern.
+
+Anschliessend werden mit Seed 42 drei disjunkte Reservoirs erzeugt:
+
+- 60 000 Trainingsgruppen
+- 7 500 Validierungsgruppen
+- 7 500 finale Testgruppen
+
+Aus dem Trainingsreservoir werden 6 000 Gruppen für das dokumentierte Training ausgewählt. Aus dem Validierungsreservoir werden 750 Gruppen für die Modellauswahl verwendet. Der finale Testsplit bleibt vollständig erhalten.
+
+Die Gruppierung nach Quellidentität verhindert Information Leakage zwischen inhaltlich zusammengehörigen Cover- und Stego-Bildern.
+
+</details>
+
+<details>
+<summary><strong>🧠 TinyCNN und EfficientNet-B0</strong></summary>
+
+TinyCNN dient als kompakte Baseline. Das Modell verarbeitet den Y-Kanal und verwendet blockausgerichtete Bildausschnitte mit 256 × 256 Pixeln sowie Tile-Shuffling.
+
+EfficientNet-B0 verwendet offizielle ImageNet-Gewichte und einen angepassten YCbCr-Eingang. Die Normalisierungsstatistiken werden ausschliesslich aus dem Trainingssplit bestimmt. Das nicht kumulative Fine-Tuning beginnt mit der Stufe `head_stem` und durchläuft anschliessend die Feature-Blöcke von `feature_8` bis `feature_1`. Nach jeder Stufe wird der beste Zustand anhand der Validierungs-Weighted-AUC bestimmt. Die nächste Stufe beginnt jeweils mit dem global besten Validierungszustand.
+
+</details>
+
+<details>
+<summary><strong>⚙️ Trainingsframework</strong></summary>
+
+Das Trainingsframework stellt für beide Modelle gemeinsame Abläufe bereit:
+
+- getrennte Trainings-, Validierungs- und Testloader
+- reproduzierbare Seeds
+- eine klassengewichtete binäre Loss (`BCEWithLogitsLoss`, `pos_weight = 1/3`), welche die drei Stego-Varianten gemeinsam gegenüber der Cover-Klasse ausbalanciert
+- Auswahl anhand der Validierungs-Weighted-AUC
+- Early Stopping
+- Speicherung und Wiederherstellung des besten Modellzustands
+- genau eine finale Testevaluation nach abgeschlossener Modellauswahl
+- typsichere Pfade für Checkpoints und Trainingsverläufe
+
+Training und Evaluation bleiben strikt getrennt. Der Testsplit wird nicht für Hyperparameterwahl, Early Stopping oder Auswahl der Fine-Tuning-Stufe verwendet.
+
+</details>
+
+<details>
+<summary><strong>📋 Evaluation und Ergebnisdarstellung</strong></summary>
+
+Die Evaluation verwendet die offizielle Weighted-AUC-Metrik der ALASKA2 Steganalysis Challenge.
+
+Für jedes ausgewählte Modell werden folgende Ansichten bereitgestellt:
+
+- Trainings- und Validierungsverlauf
+- Konfusionsmatrix
+- ROC-Kurve
+- Score-Verteilung
+- numerische Testmetriken
+- datenidentischer Modellvergleich
+
+Das interaktive Evaluationswidget rekonstruiert die Ansichten aus kleinen, versionierten CSV- und JSON-Dateien. Checkpoints und vollständige Testvorhersagen werden für die Darstellung nicht benötigt.
+
+TinyCNN und EfficientNet-B0 werden auf denselben Trainings-, Validierungs- und Testmitgliedschaften verglichen.
+
+</details>
+
+## 📊 Ergebnisse
+
+### 🔬 Explorative Erkenntnisse
+
+Cover- und Stego-Bilder sind visuell kaum unterscheidbar. Im Pixelraum werden Unterschiede erst durch feine kanalweise Verteilungsverschiebungen sichtbar.
+
+Die DCT-Analyse zeigt dagegen methodenspezifische Flip-Muster. Die Änderungen konzentrieren sich überwiegend auf den Y-Kanal. JUNIWARD berücksichtigt zusätzlich texturreiche und chromatische Bildbereiche. Die JPEG-Quantisierungstabellen bleiben durch die untersuchten Stego-Verfahren unverändert.
+
+### 📈 Quantitative Ergebnisse
+
+Für den datenidentischen 10-%-Vergleich wurden beide Modelle auf denselben 6 000 von 60 000 Trainingsgruppen trainiert und anhand derselben 750 von 7 500 Validierungsgruppen ausgewählt. Die abschliessende Evaluation erfolgte auf dem vollständigen gemeinsamen Testsplit mit 7 500 Gruppen und 30 000 Bildern.
+
+| Modell | Trainingsgruppen | Trainingsbilder | Weighted AUC (Validierung) | Testgenauigkeit | Weighted AUC (Test) | Laufzeit |
+|---|---:|---:|---:|---:|---:|---:|
+| TinyCNN | 6 000 | 24 000 | 0.589 | 0.483 | **0.589** | 27 min 55 s |
+| EfficientNet-B0 | 6 000 | 24 000 | **0.590** | 0.257 | 0.586 | 54 min 02 s |
+
+EfficientNet-B0 erreichte die geringfügig höhere Weighted AUC der Validierung, während TinyCNN auf dem finalen Testsplit um rund 0.003 Weighted AUC vorne lag. Die niedrige EfficientNet-B0-Testgenauigkeit ist auf das nahezu vollständige Cover-Entscheidungsverhalten am festen Klassifikationsschwellenwert zurückzuführen. Die schwellenwertübergreifende Weighted AUC ist für diesen Vergleich deshalb aussagekräftiger als die Testgenauigkeit.
+
+Die zentrale Forschungsfrage ist für die untersuchte Konfiguration klar zu beantworten: Mit TinyCNN und EfficientNet-B0 konnte keine zuverlässige Erkennung der subtilen steganographischen Veränderungen erreicht werden. Die Testwerte von 0.589 beziehungsweise 0.586 liegen zwar über dem Zufallsniveau, zeigen jedoch nur eine begrenzte Trennfähigkeit.
+
+Eine zentrale Einschränkung dieses 10-%-Versuchs ist der reduzierte Trainingsumfang. Steganographische Veränderungen sind sehr schwach und stark vom jeweiligen Bildinhalt abhängig. Die verwendeten 6 000 Trainingsgruppen konnten die erforderliche Bildvielfalt möglicherweise nicht ausreichend abdecken. Der Einfluss des Datenumfangs wurde im vorliegenden Experiment jedoch nicht isoliert untersucht.
+
+Die Ergebnisse belegen deshalb weder eine grundsätzliche Untauglichkeit der Architekturen noch eine statistisch gesicherte Überlegenheit eines Modells. Eine abschliessende Beurteilung würde insbesondere das Training mit dem vollständigen Trainingsreservoir, mehrere unabhängige Seeds und eine umfassendere Evaluationsstrategie erfordern.
+
+Die vollständige Methodik, Diskussion und interaktive Evaluation befinden sich in [Kapitel 5 des akademischen Notebooks](ANN_Projekt_Rino_Albertin_Steganalyse.ipynb).
 
 ## ⚙️ Lokale Ausführung
+
 <details>
-<summary><strong>Variante A – Ausführung in Visual Studio Code mit Docker</strong> (empfohlen)</summary>
+<summary><strong>VS Code Dev Container mit NVIDIA-GPU</strong></summary>
 
-**Voraussetzungen:**
+Vorausgesetzt werden:
 
-- [Docker Desktop](https://www.docker.com/products/docker-desktop) ist installiert
-- [Visual Studio Code](https://code.visualstudio.com/) ist installiert
-- Die Erweiterung **"Dev Containers"** ist in VS Code aktiviert
+- Docker
+- Visual Studio Code mit der Erweiterung Dev Containers
+- eine NVIDIA-GPU
+- ein funktionsfähiges NVIDIA Container Toolkit
 
-**Vorgehen:**
+Das Repository wird geklont und in Visual Studio Code geöffnet:
 
-1. Repository klonen:
-   ```bash
-   git clone https://github.com/Rinovative/alaska2-steganalysis.git
-   cd alaska2-steganalysis
-   ```
+```bash
+git clone https://github.com/Rinovative/alaska2-steganalysis.git
+cd alaska2-steganalysis
+code .
+```
 
-2. Projektverzeichnis in Visual Studio Code öffnen
+Anschliessend wird in Visual Studio Code über `F1` der Befehl `Dev Containers: Reopen in Container` ausgeführt.
 
-3. Container starten:
-   - Entweder über die Schaltfläche `Reopen in Container` unten rechts  
-   - oder über `F1` → `Dev Containers: Reopen in Container`
+Im Container verwenden Terminal, Poetry, Pylance und Jupyter gemeinsam:
 
-4. Container schliessen
-   Nach dem ersten Build-Fenster:
-   -  Unten links auf das grüne Remote-Symbol klciken → `Close Remote Connection`
+```text
+/opt/conda/bin/python
+```
 
-5. Dev-Container erneut öffnen
-   -  Wieder F1 → `Dev Containers: Reopen in Container`
+Poetry erstellt oder verwendet im Container keine separate virtuelle Umgebung.
 
-6. Notebook starten
-   -  Öffne `ANN_Projekt_Rino_Albertin_Steganalyse.ipynb` in VS Code.  
-   
+Das Notebook kann danach direkt im VS-Code-Explorer geöffnet werden. Als Kernel muss `/opt/conda/bin/python` ausgewählt werden.
+
 </details>
 
 <details>
-<summary><strong>Variante B – Ausführung über Docker CLI (ohne VS Code)</strong></summary>
+<summary><strong>Datensätze ablegen und prüfen</strong></summary>
 
-**Voraussetzungen:**
+### Originaler ALASKA2-Datensatz
 
-- [Docker](https://www.docker.com/) ist installiert und lauffähig
+Die vier aus Kaggle entpackten Klassenordner werden direkt unter `data/ALASKA2/` abgelegt.
 
-**Vorgehen:**
+```text
+data/ALASKA2/
+├── Cover/
+│   ├── 00001.jpg
+│   └── ...
+├── JMiPOD/
+│   ├── 00001.jpg
+│   └── ...
+├── JUNIWARD/
+│   ├── 00001.jpg
+│   └── ...
+└── UERD/
+    ├── 00001.jpg
+    └── ...
+```
 
-1. Repository klonen:
-   ```bash
-   git clone https://github.com/Rinovative/alaska2-steganalysis.git
-   cd alaska2-steganalysis
-   ```
+Alle vier Klassen müssen:
 
-2. Docker-Image erstellen:
-   ```bash
-   docker build -t stego-dev .
-   ```
+- direkt unter `data/ALASKA2/` liegen
+- JPEG-Dateien enthalten
+- für zusammengehörige Cover- und Stego-Bilder dieselben Basisnamen verwenden
 
-3. Container starten und Projektverzeichnis einbinden:
-   ```bash
-   docker run -it --rm -p 8888:8888 -v $(pwd):/app stego-dev
-   ```
+Die Endungen `.jpg` und `.jpeg` werden unabhängig von der Gross- und Kleinschreibung unterstützt. Das unbeschriftete Kaggle-Verzeichnis `Test/` wird nicht benötigt.
 
-4. Innerhalb des Containers Jupyter Notebook starten:
-   ```bash
-   jupyter notebook --ip=0.0.0.0 --no-browser --allow-root
-   ```
+Der Datensatz und die GPU-Umgebung können im Dev Container geprüft werden mit:
 
-5. Die in der Konsole ausgegebene URL kann verwendet werden, um über einen lokalen Browser auf das Notebook zuzugreifen.
+```bash
+poetry run alaska2-dataset-preflight --root data/ALASKA2
+poetry run alaska2-gpu-preflight
+```
+
+Der Dataset-Preflight liest und validiert die JPEG-Dateien, verändert sie jedoch nicht.
+
+### Synthetischer Ersatzdatensatz
+
+Bei automatischer Datenwahl bereitet das Notebook den öffentlichen Ersatzdatensatz bei Bedarf unter `data/PD12M/` vor.
+
+Downloads und Generierung verwenden kurzlebige, versteckte Arbeitsverzeichnisse direkt unter `data/`. Dauerhaft gespeichert werden nur die ausgewählten Cover-Bilder und die drei synthetischen Varianten.
+
+Die Konfiguration `DATASET_SOURCE` steuert die Auswahl:
+
+- `"auto"` bevorzugt eine vollständige ALASKA2-Struktur und verwendet andernfalls den synthetischen Ersatzdatensatz
+- `"alaska2"` verlangt ausdrücklich den realen Datensatz und deaktiviert den synthetischen Fallback
+- `"synthetic"` wählt ausschliesslich den Ersatzdatensatz
+
+Fehlt der synthetische Ersatzdatensatz, kann ihn das Notebook bei aktiviertem `DOWNLOAD_PUBLIC_PROXY_IF_NEEDED` vorbereiten.
+
+Reale ALASKA2-Bilder und synthetische Bilder werden weder im Dateisystem noch innerhalb eines Modelllaufs vermischt.
 
 </details>
 
----
+<details>
+<summary><strong>TinyCNN und EfficientNet-B0 trainieren</strong></summary>
+
+Das Training wird in der Codezelle **«Zentrale Daten- und Trainingskonfiguration»** aktiviert:
+
+```python
+DATASET_SOURCE = "alaska2"
+TRAIN_TINYCNN = True
+TRAIN_EFFICIENTNET = True
+```
+
+Mit den beiden Trainingsflags können TinyCNN, EfficientNet-B0 oder beide Modelle nacheinander ausgeführt werden. Sie sind standardmässig deaktiviert, damit das Öffnen und Ausführen der Präsentationszellen kein unbeabsichtigtes Training startet.
+
+Vor dem ersten Optimierungsschritt prüfen der Dataset- und der GPU-Preflight die erforderlichen Laufzeitbedingungen. Beide Modelle verwenden die dokumentierten gemeinsamen Trainings-, Validierungs- und Testmitgliedschaften. Die Modellauswahl erfolgt ausschliesslich anhand der Validierungs-Weighted-AUC. Der vollständige Testsplit wird erst nach der Wiederherstellung des besten Modellzustands einmalig ausgewertet.
+
+Checkpoints und Trainingsverläufe werden nach Datensatz, Modell und Laufkennung unter `checkpoints/` beziehungsweise `reports/` gespeichert. Diese Laufzeitartefakte bleiben lokal und werden nicht versioniert. Die kleine, dauerhaft benötigte Ergebnisevidenz für Notebook und Evaluationswidget liegt unter `artifacts/`.
+
+</details>
 
 ## 📂 Projektstruktur
+
 <details>
 <summary><strong>Projektstruktur anzeigen</strong></summary>
 
-```bash
+```text
 .
-├── .devcontainer/                        # Docker-Container-Konfiguration für die Entwicklung
-│   ├── devcontainer.json                 # Konfigurationsdatei für Visual Studio Code DevContainer
-│   └── Dockerfile                        # Dockerfile zur Erstellung eines Entwicklungscontainers für die Umgebung
+├── .devcontainer/                                                       # GPU-Entwicklungscontainer
+│   ├── Dockerfile                                                       # PyTorch-, CUDA- und Poetry-Umgebung
+│   └── devcontainer.json                                                # Workspace, GPU und VS-Code-Werkzeuge
 │
-├── .github/                              # GitHub-spezifische Workflows und Aktionen
-│   └── workflows/                        # Enthält CI/CD-Workflows für GitHub Actions
-│       └── lint.yml                      # Linter-Workflow, der bei jeder Codeänderung ausgeführt wird, um den Code zu prüfen und zu formatieren
+├── .github/
+│   └── workflows/
+│       └── lint.yml                                                     # CPU-basierte Qualitätsprüfung
 │
-├── cache/                                # Zwischengespeicherte Daten (z.B. vorverarbeitete Bilder, Trainingsdaten)
-│   ├── alaska2/                          # Enthält Zwischenspeicher-Daten für den ALASKA2-Datensatz
-│   └── pd12m/                            # Enthält Zwischenspeicher-Daten für den PD12M-Datensatz (synthetische Stego-Varianten)
+├── .vscode/
+│   └── settings.json                                                    # Gemeinsame VS-Code-Einstellungen
 │
-├── data/                                 # Datenverzeichnis
-│   └── raw/                              # Rohdaten
-│       ├── alaska2-image-steganalysis/   # Enthält Cover + Stego-Varianten (JMiPOD, JUNIWARD, UERD)
-│       └── PD12M/                        # Enthält Cover + synthetische Stego-Varianten (JMiPOD, JUNIWARD, UERD)
-├── images/                               # Grafiken für Visualisierungen (ROC, AUC, etc.)
+├── artifacts/                                                           # Kuratierte Ergebnisläufe
+│   └── alaska2/
+│       └── alaska2_retrain_tiny10_effnet10_seed42_20260721/
+│           ├── comparison.csv                                           # Datenidentischer Modellvergleich
+│           ├── final_summary.json                                       # Zusammenfassung des Ergebnislaufs
+│           ├── manifest/                                                # Konfiguration, Treiber und Prüfsummen
+│           ├── splits/
+│           │   └── split_membership.json                                # Gemeinsame Split-Mitgliedschaften
+│           ├── tinycnn/
+│           │   ├── evaluation/                                          # Metriken, ROC- und Score-Daten
+│           │   ├── histories/                                           # Vollständiger Trainingsverlauf
+│           │   ├── checkpoints/                                         # Ausgewähltes Modell, lokal ignoriert
+│           │   └── predictions/                                         # Testvorhersagen, lokal ignoriert
+│           └── efficientnet_b0/
+│               ├── evaluation/                                          # Metriken, ROC- und Score-Daten
+│               ├── histories/                                           # Kombinierter Stufenverlauf
+│               ├── checkpoints/                                         # Ausgewähltes Modell, lokal ignoriert
+│               └── predictions/                                         # Testvorhersagen, lokal ignoriert
 │
-├── src/                                  # Quellcode des Projekts
-│   ├── eda/                              # Explorative Datenanalyse (Modulstruktur)
-│   │   ├── __init__.py                   # Initialisierungsdatei für das EDA-Modul
-│   │   ├── eda_color_channel_statistics.py  # Analyse der Farbkanäle in den Bildern (Erklärung und Visualisierung)
-│   │   ├── eda_dct.py                    # DCT-basierte Bildanalyse, zur Untersuchung der Frequenzkomponenten
-│   │   ├── eda_examples.py               # Beispielvisualisierungen der Bilder (Cover vs. Stego)
-│   │   └── eda_overview.py               # Übersicht und Zusammenfassung der explorativen Datenanalyse
+├── assets/                                                              # Direkt eingebundene Notebook-Medien
+│   └── notebook/                                                        # Logo, Signatur sowie DCT-/IDCT-Lehrmedien
+│
+├── data/                                                                # Lokale Datensatzwurzeln
+│   ├── ALASKA2/                                                         # Cover, JMiPOD, JUNIWARD und UERD
+│   └── PD12M/                                                           # Öffentlicher synthetischer Ersatzdatensatz
+│
+├── src/
+│   ├── __init__.py                                                      # Exportiert die öffentlichen Teilpakete
 │   │
-│   ├── model/                            # Modellarchitektur, Training und Evaluation
-│   │   ├── __init__.py                   # Initialisierungsdatei für das Modellmodul
-│   │   ├── model_train.py                # Trainingsskript für das Modell (Modellaufbau, Training, Optimierung)
-│   │   ├── model_evaluation.py           # Evaluierung des Modells (z.B. mit AUC, ROC, Konfusionsmatrix)
-│   │   ├── model_metrics.py              # Berechnung und Visualisierung von Metriken (Loss, Accuracy, AUC)
-│   │   ├── model_plot.py                 # Visualisierung von Ergebnissen (z.B. Konfusionsmatrix, Feature-Importanz)
+│   ├── config/
+│   │   ├── __init__.py                                                  # Exportiert die Konfigurationsschnittstellen
+│   │   ├── config_device.py                                             # Prüft CUDA und wählt das Ausführungsgerät
+│   │   ├── config_paths.py                                              # Definiert Projekt-, Daten- und Artefaktpfade
+│   │   └── config_runtime.py                                            # Konfiguriert Seeds und deterministische Ausführung
 │   │
-│   ├── util/                             # Hilfsfunktionen für Datenvorverarbeitung und Notebook-Unterstützung
-│   │   ├── util_cache.py                 # Caching-Funktionen für Plots und Berechnungen
-│   │   ├── util_data.py                  # Funktionen für das Laden und Vorverarbeiten von Daten
-│   │   ├── util_nb.py                    # Funktionen zur Unterstützung von Jupyter-Notebooks (z.B. Widgets, Panels)
-│   │   └── poetry/                       # CI/CD-Linting-Konfiguration für Poetry
-│   │       └── poetry_lint.py
+│   ├── data/
+│   │   ├── __init__.py
+│   │   ├── data_index.py                                                # Indexiert vollständige Cover- und Stego-Gruppen
+│   │   ├── data_metadata.py                                             # Extrahiert JPEG-Metadaten und Quantisierungstabellen
+│   │   ├── data_preparation.py                                          # Orchestriert Indexierung, Splits und EDA-Auswahl
+│   │   ├── data_preflight.py                                            # Validiert den lokalen ALASKA2-Datensatz
+│   │   ├── data_split.py                                                # Erzeugt quellenweise getrennte Datensplits
+│   │   └── data_synthetic.py                                            # Bereitet den synthetischen PD12M-Proxy vor
 │   │
-│   └── __init__.py
+│   ├── datasets/
+│   │   ├── __init__.py
+│   │   ├── datasets_dct.py                                              # Lädt DCT-Koeffizienten und Fusionstensoren
+│   │   ├── datasets_images.py                                           # Lädt dekodierte JPEG-Bildtensoren
+│   │   └── datasets_loaders.py                                          # Erstellt Trainings-, Validierungs- und Testloader
+│   │
+│   ├── eda/
+│   │   ├── __init__.py
+│   │   ├── eda_channels.py                                              # Analysiert Pixel- und Kanalverteilungen
+│   │   ├── eda_controls.py                                              # Steuert interaktive EDA-Auswahlkomponenten
+│   │   ├── eda_dct.py                                                   # Analysiert Quantisierung und DCT-Änderungen
+│   │   ├── eda_examples.py                                              # Visualisiert Cover- und Stego-Beispiele
+│   │   ├── eda_overview.py                                              # Fasst Datensatzstruktur und Klassen zusammen
+│   │   └── eda_style.py                                                 # Vereinheitlicht Reihenfolge und Darstellungsstil
+│   │
+│   ├── evaluation/
+│   │   ├── __init__.py
+│   │   ├── evaluation_metrics.py                                        # Berechnet Weighted AUC und Klassifikationsmetriken
+│   │   ├── evaluation_plots.py                                          # Lädt Ergebnisevidenz und erzeugt Auswertungsplots
+│   │   └── evaluation_runner.py                                         # Evaluiert ein Modell in einem Loader-Durchlauf
+│   │
+│   ├── models/
+│   │   ├── __init__.py
+│   │   ├── models_efficientnet.py                                       # Konfiguriert EfficientNet-B0 für YCbCr-Eingaben
+│   │   ├── models_freezing.py                                           # Definiert die reproduzierbaren Fine-Tuning-Stufen
+│   │   └── models_tinycnn.py                                            # Implementiert die kompakte TinyCNN-Baseline
+│   │
+│   ├── presentation/
+│   │   ├── __init__.py
+│   │   ├── presentation_cache.py                                        # Verwaltet den lokalen EDA-Abbildungscache
+│   │   └── presentation_widgets.py                                      # Erstellt die interaktiven EDA- und Evaluationswidgets
+│   │
+│   ├── training/
+│   │   ├── __init__.py
+│   │   ├── training_artifacts.py                                        # Erzeugt typsichere Pfade für Trainingsartefakte
+│   │   ├── training_checkpoint.py                                       # Speichert und restauriert Modellzustände
+│   │   ├── training_loop.py                                             # Trainiert Modelle mit Validierung und Early Stopping
+│   │   └── training_staged.py                                           # Steuert das stufenweise EfficientNet-Fine-Tuning
+│   │
+│   └── transforms/
+│       ├── __init__.py
+│       ├── transforms_shuffle.py                                        # Ordnet Bildkacheln zufällig neu
+│       └── transforms_spatial.py                                        # Erzeugt blockausgerichtete Bildausschnitte
 │
-├── .gitignore                            # Ausschlussregeln für Git (z.B. temporäre Dateien, IDE-Settings, etc.)
-├── ANN_Projekt_Rino_Albertin_Steganalyse.ipynb  # Haupt-Jupyter-Notebook für das Steganalyse-Projekt
-│   └── Das Notebook enthält:
-│       ├── Einleitung und Beschreibung des Projekts
-│       ├── Explorative Datenanalyse
-│       ├── Modelltraining und Hyperparameter-Tuning
-│       ├── Evaluierung und Visualisierung der Ergebnisse
-├── LICENSE                               # Lizenzdatei für das Projekt (MIT License)
-├── poetry.lock                           # Fixierte Abhängigkeiten (Poetry), um Abhängigkeiten für das Projekt zu sperren
-├── pyproject.toml                        # Projektdefinition und Abhängigkeiten (Poetry), welche die Python-Pakete und Versionen festlegt
-├── README.md                             # Projektübersicht und Erklärung der Zielsetzung und Methodik
-└── requirements.txt                      # Alternativ für Pip / Binder / Colab, um die Abhängigkeiten zu installieren
+├── tests/                                                               # Verhaltens- und Vertragsprüfungen
+│
+├── checkpoints/                                                         # Lokal erzeugte Modellzustände
+├── reports/                                                             # Lokal erzeugte Trainingsverläufe
+│
+├── .dockerignore                                                        # Begrenzt den Docker-Build-Kontext
+├── .gitattributes                                                       # Repository-weite Dateiattribute
+├── .gitignore                                                           # Ignoriert Daten und Laufzeitartefakte
+├── ANN_Projekt_Rino_Albertin_Steganalyse.ipynb                          # Akademische Ausarbeitung
+├── LICENSE                                                              # MIT-Lizenz
+├── README.md                                                            # Projektübersicht und Ausführung
+├── poetry.lock                                                          # Aufgelöste Abhängigkeiten
+├── poetry.toml                                                          # Lokale Poetry-Konfiguration
+└── pyproject.toml                                                       # Paket und Qualitätswerkzeuge
 ```
-</details>
 
----
+Die Verzeichnisse `checkpoints/` und `reports/` werden bei Bedarf durch Trainingsläufe erstellt und sind nicht Bestandteil des versionierten Repository-Inhalts.
+
+</details>
 
 ## 📄 Lizenz
 
-Dieses Projekt steht unter der [MIT-Lizenz](LICENSE).
-
----
+Dieses Projekt steht unter der [MIT-Lizenz](LICENSE.md).
 
 ## 📚 Quellen
 
-- ALASKA2-Datensatz:  
-  [Kaggle – ALASKA2 Steganalysis Challenge](https://www.kaggle.com/competitions/alaska2-image-steganalysis)
-
-- Synthetischer Demo-Datensatz:  
-  [Hugging Face – Rinovative/pd12m_dct_based_synthetic_stegano](https://huggingface.co/datasets/Rinovative/pd12m_dct_based_synthetic_stegano)
-
-- Lehrunterlagen „Applied Neural Networks“ – OST – Ostschweizer Fachhochschule
+- Kaggle, **ALASKA2 Image Steganalysis Challenge**:
+  [https://www.kaggle.com/competitions/alaska2-image-steganalysis](https://www.kaggle.com/competitions/alaska2-image-steganalysis)
+- Rinovative, **PD12M DCT-based Synthetic Steganography Dataset**:
+  [https://huggingface.co/datasets/Rinovative/pd12m_dct_based_synthetic_stegano](https://huggingface.co/datasets/Rinovative/pd12m_dct_based_synthetic_stegano)
+- OST – Ostschweizer Fachhochschule, **Lehrunterlagen Applied Neural Networks**, Frühjahr 2025.

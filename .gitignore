@@ -1,62 +1,55 @@
-# ================================
-# 🐍 Python
-# ================================
+# Python and build products
 __pycache__/
 *.py[cod]
-*.pyd
-*.pyc
 *.so
 *.egg-info/
-
-# ================================
-# 📓 Jupyter
-# ================================
-*.ipynb~
-.ipynb_checkpoints/
 build/
 dist/
+.coverage
+coverage.xml
+htmlcov/
 
-# ================================
-# 📁 VSCode / OS
-# ================================
-.vscode/
-*.DS_Store
+# Environments and editor state
+.env
+.env.*
+.venv/
+venv/
+env/
+.idea/
+.DS_Store
 Thumbs.db
 
-# ================================
-# 🧪 Cache / Logs
-# ================================
-.mypy_cache/
+# Test, type, lint, and notebook caches
 .pytest_cache/
+.pyright/
+.ruff_cache/
+.ipynb_checkpoints/
+*.ipynb~
+*.orig
+*.bak
 *.log
 *.tmp
 
-# ================================
-# 📦 Daten
-# ================================
-# Ignoriere alle Dateien in den folgenden Ordnern
-data/raw/*
-# Ausnahmen für .gitkeep, damit die Ordnerstruktur erhalten bleibt
-!data/raw/.gitkeep
-# Einschliesslich der Unterordner PD12M und alaska2-image-steganalysis
-!data/raw/PD12M/.gitkeep
-!data/raw/alaska2-image-steganalysis/.gitkeep
+# Local datasets and synthetic staging (retain only root placeholders)
+data/ALASKA2/*
+!data/ALASKA2/.gitkeep
+data/PD12M/*
+!data/PD12M/.gitkeep
+data/.pd12m-download-*/
+data/.pd12m-covers-*/
+data/.pd12m-stego-*/
 
-# Verhindere, dass Bilder in den Ordnern versioniert werden
-*.jpg
-*.jpeg
-!images/**
-safe
+# Runtime products
+cache/
+checkpoints/
+reports/
 
-# ================================
-# ⚙️ Umgebung / Pakete
-# ================================
-.env
-.venv/
-env/
-node_modules/
-*.exe
-*.dll
-*.pdb
-*.map
-*.js
+# Selected local model outputs inside curated experiment runs
+/artifacts/alaska2/*/tinycnn/checkpoints/
+/artifacts/alaska2/*/tinycnn/predictions/
+/artifacts/alaska2/*/efficientnet_b0/checkpoints/
+/artifacts/alaska2/*/efficientnet_b0/predictions/
+
+# Download and extraction leftovers
+*.zip
+*.part

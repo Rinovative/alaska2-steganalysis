@@ -1,0 +1,3 @@
+model,training_groups,training_images,best_validation_weighted_auc,final_test_accuracy,final_test_weighted_auc,runtime_seconds
+TinyCNN,6000,24000,0.5892537566137567,0.48333333333333334,0.5893674031746032,1675.2585679689982
+EfficientNet-B0,6000,24000,0.5896042328042329,0.2565,0.5861460359788361,3242.0781373109967

@@ -1,0 +1,54 @@
+{
+  "algorithm": {
+    "membership_hash": "SHA-256 of UTF-8 IDs plus LF; reservoirs/subsets sorted, source_ordering in persisted shuffled order",
+    "reservoirs": "exact slices [0:60000], [60000:67500], [67500:75000] of the persisted seed-42 ordering, wrapped in maintained DatasetSplits and checked by maintained assert_split_isolation",
+    "source_ordering": "random.Random(42).shuffle applied once to lexicographically sorted complete basenames",
+    "subsets": "a separate random.Random(42) instance; sample 6,000 sorted training-reservoir IDs then 750 sorted validation-reservoir IDs"
+  },
+  "classes_per_group": 4,
+  "complete_groups": true,
+  "disjoint": true,
+  "image_counts": {
+    "final_test": 30000,
+    "shared_training_subset": 24000,
+    "shared_validation_subset": 3000,
+    "training_reservoir": 240000,
+    "validation_reservoir": 30000
+  },
+  "memberships": {
+    "final_test": {
+      "group_count": 7500,
+      "path": "/artifacts/alaska2-retrain/alaska2_retrain_tiny10_effnet10_seed42_20260721/splits/final_test.txt",
+      "sha256": "288bec0d269b532d93cae4dd481f255d87da43ba59bcda8cca55a833d54d4125"
+    },
+    "shared_training_subset": {
+      "group_count": 6000,
+      "path": "/artifacts/alaska2-retrain/alaska2_retrain_tiny10_effnet10_seed42_20260721/splits/shared_training_subset.txt",
+      "sha256": "3bf157ec12faef689786ba9055d5838efe31b6249bc29c08d2fff02c6c34297f"
+    },
+    "shared_validation_subset": {
+      "group_count": 750,
+      "path": "/artifacts/alaska2-retrain/alaska2_retrain_tiny10_effnet10_seed42_20260721/splits/shared_validation_subset.txt",
+      "sha256": "c454a40efa4e55d3f96adaff2ffd8e63aa3db22d25c1e8f8694da102980ff7c2"
+    },
+    "source_ordering": {
+      "group_count": 75000,
+      "path": "/artifacts/alaska2-retrain/alaska2_retrain_tiny10_effnet10_seed42_20260721/splits/source_ordering.txt",
+      "sha256": "a388559d2101ac4a3799f28467b2126faebde4887b08c471a78fdb68e47a0a05"
+    },
+    "training_reservoir": {
+      "group_count": 60000,
+      "path": "/artifacts/alaska2-retrain/alaska2_retrain_tiny10_effnet10_seed42_20260721/splits/training_reservoir.txt",
+      "sha256": "0104ddbd68190ae257f854d7194b620758b693e3689752730c60f671a81900a6"
+    },
+    "validation_reservoir": {
+      "group_count": 7500,
+      "path": "/artifacts/alaska2-retrain/alaska2_retrain_tiny10_effnet10_seed42_20260721/splits/validation_reservoir.txt",
+      "sha256": "a271682dfe1deb00eed8af6bdf42bab6fea2faedc5bdb45a10c55b3e3e116670"
+    }
+  },
+  "models_share_final_test_membership": true,
+  "models_share_training_membership": true,
+  "models_share_validation_membership": true,
+  "seed": 42
+}

@@ -1,0 +1,121 @@
+{
+  "artifact_contract": {
+    "efficientnet_test_evaluation_passes": 1,
+    "inspected_at": "2026-07-21T17:10:31.721580+00:00",
+    "missing_paths": [],
+    "passed": true,
+    "test_exactly_once_each": true,
+    "tiny_test_evaluation_passes": 1
+  },
+  "code_fingerprint": {
+    "algorithm": "sha256(path + NUL + file_sha256 + newline), paths sorted as POSIX",
+    "composite_sha256": "919aca31f342c07953bd8112f68876c1e0b8ae4584056c794f7f1f9dfdc87ac6",
+    "file_count": 63,
+    "manifest_path": "/artifacts/alaska2-retrain/alaska2_retrain_tiny10_effnet10_seed42_20260721/manifest/maintained_file_hashes.csv",
+    "notebook_sha256": "caa9580f3dad957fe780e8a4fb4b3d6b91beba87c00b8d52002bd2d4248047f7",
+    "readme_sha256": "dba21243dbf09e006edc2de05152679200359ad0706eaf1f950c40f4b7ab65cb"
+  },
+  "comparison_paths": [
+    "/artifacts/alaska2-retrain/alaska2_retrain_tiny10_effnet10_seed42_20260721/comparison.csv",
+    "/artifacts/alaska2-retrain/alaska2_retrain_tiny10_effnet10_seed42_20260721/comparison.json"
+  ],
+  "completion_timestamp": "2026-07-21T17:10:31.721830+00:00",
+  "dataset_final_identity_sha256": "cdf682f0368cd4b558ebd8f2a388619cff2681ed434cd7df883fcd7354efa49f",
+  "dataset_immutable": true,
+  "dataset_start_identity_sha256": "cdf682f0368cd4b558ebd8f2a388619cff2681ed434cd7df883fcd7354efa49f",
+  "efficientnet_result_path": "/artifacts/alaska2-retrain/alaska2_retrain_tiny10_effnet10_seed42_20260721/efficientnet_b0/evaluation/final_result.json",
+  "environment_fingerprint": "8e25cd0626bc1d949c7f3c3ceeedf6279dafea648a76f14ff4132446a3523d28",
+  "failures_retries_recoveries": [
+    {
+      "attempt": 1,
+      "diagnosis": "Launch-level process-lifetime/output handling failure; no evidence of a repository, dataset, CUDA, or model failure.",
+      "failure": "Durable launch command omitted explicit stream redirection/backgrounding; PID 90064 exited during preflight before split creation or optimization, with no checkpoints or result artifacts.",
+      "recovery": "Preserved the incomplete run directory, verified it contained only the driver, preparing state, and first event, then relaunched the same unambiguous run ID with stdin=/dev/null, stdout/stderr redirected to logs/driver.log, and shell backgrounding.",
+      "scientific_state_reused": false,
+      "timestamp": "2026-07-21T15:37:48+00:00"
+    },
+    {
+      "attempt": 2,
+      "diagnosis": "The second sklearn split rounded its floating-point validation size upward; this conflicts with the objective exact reservoir counts.",
+      "failure": "Pre-optimization split assertion found 59,999 training, 7,501 validation, and 7,500 test groups from the maintained float-fraction helper.",
+      "recovery": "Preserved all preflight evidence and replaced only external reservoir orchestration with the objective one seed-42 shuffled basename ordering sliced exactly 60,000/7,500/7,500; maintained indexing, complete-group validation, DatasetSplits, and isolation checks remain in use.",
+      "scientific_state_reused": false,
+      "timestamp": "2026-07-21T15:42:29+00:00"
+    }
+  ],
+  "git_head": "cb95bcb3d50c7820b53dc7f18549f10f67c07c30",
+  "go_for_readme_notebook_update": true,
+  "notebook_unchanged": true,
+  "overall_runtime_seconds": 4998.337039210997,
+  "prohibited_actions": {
+    "container_rebuild": false,
+    "dataset_deletion": false,
+    "four_class_training": false,
+    "git_commit": false,
+    "git_push": false,
+    "git_stage": false,
+    "optuna": false,
+    "resnet": false,
+    "srnet": false,
+    "wandb": false,
+    "xai": false
+  },
+  "readme_unchanged": true,
+  "run_id": "alaska2_retrain_tiny10_effnet10_seed42_20260721",
+  "split_evidence": {
+    "algorithm": {
+      "membership_hash": "SHA-256 of UTF-8 IDs plus LF; reservoirs/subsets sorted, source_ordering in persisted shuffled order",
+      "reservoirs": "exact slices [0:60000], [60000:67500], [67500:75000] of the persisted seed-42 ordering, wrapped in maintained DatasetSplits and checked by maintained assert_split_isolation",
+      "source_ordering": "random.Random(42).shuffle applied once to lexicographically sorted complete basenames",
+      "subsets": "a separate random.Random(42) instance; sample 6,000 sorted training-reservoir IDs then 750 sorted validation-reservoir IDs"
+    },
+    "classes_per_group": 4,
+    "complete_groups": true,
+    "disjoint": true,
+    "image_counts": {
+      "final_test": 30000,
+      "shared_training_subset": 24000,
+      "shared_validation_subset": 3000,
+      "training_reservoir": 240000,
+      "validation_reservoir": 30000
+    },
+    "memberships": {
+      "final_test": {
+        "group_count": 7500,
+        "path": "/artifacts/alaska2-retrain/alaska2_retrain_tiny10_effnet10_seed42_20260721/splits/final_test.txt",
+        "sha256": "288bec0d269b532d93cae4dd481f255d87da43ba59bcda8cca55a833d54d4125"
+      },
+      "shared_training_subset": {
+        "group_count": 6000,
+        "path": "/artifacts/alaska2-retrain/alaska2_retrain_tiny10_effnet10_seed42_20260721/splits/shared_training_subset.txt",
+        "sha256": "3bf157ec12faef689786ba9055d5838efe31b6249bc29c08d2fff02c6c34297f"
+      },
+      "shared_validation_subset": {
+        "group_count": 750,
+        "path": "/artifacts/alaska2-retrain/alaska2_retrain_tiny10_effnet10_seed42_20260721/splits/shared_validation_subset.txt",
+        "sha256": "c454a40efa4e55d3f96adaff2ffd8e63aa3db22d25c1e8f8694da102980ff7c2"
+      },
+      "source_ordering": {
+        "group_count": 75000,
+        "path": "/artifacts/alaska2-retrain/alaska2_retrain_tiny10_effnet10_seed42_20260721/splits/source_ordering.txt",
+        "sha256": "a388559d2101ac4a3799f28467b2126faebde4887b08c471a78fdb68e47a0a05"
+      },
+      "training_reservoir": {
+        "group_count": 60000,
+        "path": "/artifacts/alaska2-retrain/alaska2_retrain_tiny10_effnet10_seed42_20260721/splits/training_reservoir.txt",
+        "sha256": "0104ddbd68190ae257f854d7194b620758b693e3689752730c60f671a81900a6"
+      },
+      "validation_reservoir": {
+        "group_count": 7500,
+        "path": "/artifacts/alaska2-retrain/alaska2_retrain_tiny10_effnet10_seed42_20260721/splits/validation_reservoir.txt",
+        "sha256": "a271682dfe1deb00eed8af6bdf42bab6fea2faedc5bdb45a10c55b3e3e116670"
+      }
+    },
+    "models_share_final_test_membership": true,
+    "models_share_training_membership": true,
+    "models_share_validation_membership": true,
+    "seed": 42
+  },
+  "status": "completed",
+  "tinycnn_result_path": "/artifacts/alaska2-retrain/alaska2_retrain_tiny10_effnet10_seed42_20260721/tinycnn/evaluation/final_result.json"
+}
