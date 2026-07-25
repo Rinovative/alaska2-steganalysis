@@ -40,7 +40,24 @@ data/.pd12m-covers-*/
 data/.pd12m-stego-*/
 
 # Runtime products
-cache/
+cache/*
+!cache/alaska2/
+cache/alaska2/*
+!cache/alaska2/.gitkeep
+!cache/pd12m/
+cache/pd12m/*
+!cache/pd12m/manifest.json
+!cache/pd12m/pd12m_plot_001.png
+!cache/pd12m/pd12m_plot_002.png
+!cache/pd12m/pd12m_plot_005.png
+!cache/pd12m/pd12m_plot_006.png
+!cache/pd12m/pd12m_plot_007.png
+!cache/pd12m/pd12m_plot_008.png
+!cache/pd12m/pd12m_plot_009.png
+!cache/pd12m/pd12m_plot_011.png
+!cache/pd12m/pd12m_plot_012.png
+!cache/pd12m/pd12m_plot_013.png
+!cache/pd12m/pd12m_plot_014.png
 checkpoints/
 reports/
 

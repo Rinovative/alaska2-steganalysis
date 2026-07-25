@@ -52,11 +52,15 @@ def test_project_paths_are_cwd_independent_and_create_only_runtime_dirs(tmp_path
     assert paths.data == tmp_path / "data"
     assert paths.alaska2 == tmp_path / "data" / "ALASKA2"
     assert paths.pd12m == tmp_path / "data" / "PD12M"
+    assert paths.assets == tmp_path / "assets"
+    assert paths.dataset_cache("alaska2") == tmp_path / "cache" / "alaska2"
+    assert paths.dataset_cache("pd12m") == tmp_path / "cache" / "pd12m"
     paths.create_runtime_directories()
     assert paths.cache.is_dir()
     assert paths.checkpoints.is_dir()
     assert paths.reports.is_dir()
     assert paths.artifacts == tmp_path / "artifacts"
+    assert not paths.assets.exists()
     assert not paths.data.exists()
 
 
@@ -65,8 +69,12 @@ def test_dataset_selection_uses_flat_isolated_roots(tmp_path: Path) -> None:
     for class_name in CLASS_LABELS:
         _write_jpeg(paths.pd12m / class_name / "00001.jpg")
     synthetic = select_dataset(paths, source="synthetic")
+    automatic_proxy = select_dataset(paths, source="auto")
     assert synthetic.root == paths.pd12m
     assert synthetic.synthetic
+    assert synthetic.cache_namespace == "pd12m"
+    assert automatic_proxy.root == paths.pd12m
+    assert automatic_proxy.cache_namespace == "pd12m"
     assert "JMiPOD" in synthetic.class_labels
     assert "nsF5" not in synthetic.class_labels
 
@@ -75,6 +83,7 @@ def test_dataset_selection_uses_flat_isolated_roots(tmp_path: Path) -> None:
     automatic = select_dataset(paths, source="auto")
     assert automatic.root == paths.alaska2
     assert not automatic.synthetic
+    assert automatic.cache_namespace == "alaska2"
     assert select_dataset(paths, source="synthetic").root == paths.pd12m
 
 

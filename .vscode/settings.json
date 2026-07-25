@@ -1,4 +1,6 @@
 {
   "python.analysis.diagnosticMode": "workspace",
-  "python.testing.pytestEnabled": true
+  "python.testing.pytestEnabled": true,
+  "python-envs.defaultEnvManager": "ms-python.python:conda",
+  "python-envs.defaultPackageManager": "ms-python.python:conda"
 }

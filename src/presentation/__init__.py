@@ -1,7 +1,7 @@
 """Notebook presentation and figure-cache interfaces.
 
 Provides:
-- cache: disposable runtime figure reads and writes
+- cache: validated dataset-specific figure reads and writes
 - widgets: lazy dropdown and tab widgets for notebook orchestration
 """
 

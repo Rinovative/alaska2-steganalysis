@@ -6,7 +6,7 @@ Notebook plot controls and complete evaluation presentation.
 
 Responsibilities:
   - Describe exploratory plots with typed PlotSpec values.
-  - Reuse generated runtime EDA PNGs or compute figures lazily.
+  - Reuse validated dataset-specific EDA PNGs or compute figures lazily.
   - Compose dropdown sections into open/close tab panels.
   - Present every verified model-evaluation view in one artifact-driven
     widget.
@@ -27,9 +27,11 @@ Notes:
 
 from __future__ import annotations
 
+import hashlib
 import inspect
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Final
 
 import ipywidgets
@@ -39,18 +41,27 @@ from IPython.display import Image, clear_output, display
 from matplotlib.figure import Figure
 
 from ..config.config_paths import ProjectPaths
+from ..eda import eda_channels, eda_dct, eda_examples, eda_overview
 from ..evaluation import evaluation_plots
 from .presentation_cache import resolve_cached_figure_path, sanitize_name, save_figure
 
 __all__ = [
+    "EDA_SECTION_TITLES",
     "EVALUATION_VIEW_TITLES",
     "PlotSpec",
     "make_dropdown_section",
+    "make_eda_plot_specs",
     "make_evaluation_widget",
     "make_lazy_tabs",
     "make_plot_factory",
 ]
 
+EDA_SECTION_TITLES: Final[tuple[tuple[str, str], ...]] = (
+    ("overview", "1. Übersicht"),
+    ("examples", "2. Bildbeispiele"),
+    ("stats", "3. Farbkanalstatistik"),
+    ("dct", "4. DCT-Analyse"),
+)
 EVALUATION_VIEW_TITLES: Final[tuple[tuple[str, str], ...]] = (
     ("history", "Lernverlauf"),
     ("confusion", "Konfusionsmatrix"),
@@ -78,11 +89,34 @@ class PlotSpec:
     title: str
     render: Callable[[], Any]
     cache_name: str
+    cache_renderer: str = ""
+    cache_parameters: dict[str, object] | None = None
+    cache_seed: int = 42
+    source_groups: int | None = None
+    image_count: int | None = None
+    prebuild_cache: bool = True
+
+
+def _renderer_cache_identity(function: Callable[..., Any]) -> str:
+    module_name = getattr(function, "__module__", "<unknown>")
+    qualified_name = getattr(function, "__qualname__", getattr(function, "__name__", "<callable>"))
+    source_path = inspect.getsourcefile(function)
+    if source_path is not None and Path(source_path).is_file():
+        source = Path(source_path).read_bytes()
+    else:
+        try:
+            source = inspect.getsource(function).encode()
+        except (OSError, TypeError):
+            source = f"{module_name}.{qualified_name}".encode()
+    digest = hashlib.sha256(source).hexdigest()[:16]
+    return f"{module_name}.{qualified_name}:{digest}"
 
 
 def make_plot_factory(
     dataframe: pd.DataFrame,
     dataset_name: str,
+    *,
+    seed: int = 42,
 ) -> Callable[..., PlotSpec]:
     """Bind a concise PlotSpec factory to one dataframe and dataset name.
 
@@ -98,12 +132,16 @@ def make_plot_factory(
     Callable[..., PlotSpec]
         Factory assigning stable cache names and lazy render callables.
     """
+    source_groups = int(dataframe["source_id"].nunique()) if "source_id" in dataframe else None
+    image_count = len(dataframe)
     counter = 0
 
     def create(
         title: str,
         function: Callable[..., Any],
         cache_name: str | None = None,
+        *,
+        prebuild_cache: bool = True,
         **kwargs: Any,
     ) -> PlotSpec:
         nonlocal counter
@@ -114,10 +152,76 @@ def make_plot_factory(
         return PlotSpec(
             title=title,
             render=lambda: function(dataframe, **kwargs),
+            cache_renderer=_renderer_cache_identity(function),
+            cache_parameters=dict(kwargs),
+            cache_seed=seed,
+            source_groups=source_groups,
+            image_count=image_count,
             cache_name=sanitize_name(name),
+            prebuild_cache=prebuild_cache,
         )
 
     return create
+
+
+def make_eda_plot_specs(
+    dataframe: pd.DataFrame,
+    dataset_name: str,
+    *,
+    seed: int,
+) -> dict[str, tuple[PlotSpec, ...]]:
+    """Build the complete ordered EDA catalog for notebook and cache generation."""
+    plot = make_plot_factory(dataframe, dataset_name, seed=seed)
+    return {
+        "overview": (
+            plot("1-1. Struktur & Statistik", eda_overview.show_dataset_overview, prebuild_cache=False),
+            plot("1-2. Klassenverteilung", eda_overview.plot_class_distribution),
+            plot("1-3. JPEG-Qualitätsverteilung", eda_overview.plot_jpeg_quality_distribution),
+        ),
+        "examples": (
+            plot("2-1. Bildraster pro Klasse", eda_examples.make_image_grid_widget, prebuild_cache=False),
+            plot(
+                "2-2. Vergleich Cover vs. Stego",
+                eda_examples.make_cover_stego_comparison_widget,
+                prebuild_cache=False,
+            ),
+        ),
+        "stats": (
+            plot("3-1. Pixelwert-Histogramme (YCbCr)", eda_channels.plot_pixel_histograms),
+            plot("3-2. Bild-Mittelwertverteilung", eda_channels.plot_image_mean_distribution),
+            plot(
+                "3-3. KDE & Boxplot - YCbCr",
+                eda_channels.plot_kde_and_boxplot,
+                color_space="YCbCr",
+            ),
+            plot("3-4. Korrelation YCbCr-Kanäle", eda_channels.plot_channel_correlation),
+            plot(
+                "3-5. KDE & Boxplot - RGB",
+                eda_channels.plot_kde_and_boxplot,
+                color_space="RGB",
+            ),
+            plot(
+                "3-6. Ausreisser (Z-Score)",
+                eda_channels.show_outliers_by_channel,
+                prebuild_cache=False,
+                z_thresh=3.0,
+            ),
+        ),
+        "dct": (
+            plot("4-1. DCT-Quantisierung (Cover + Δ)", eda_dct.plot_dct_avg_and_delta),
+            plot("4-2. Anzahl DCT-Flips pro Bild", eda_dct.plot_flip_counts),
+            plot(
+                "4-3. Verteilung und Saldo der DCT-Flips im Y-Kanal (AC, ±1)",
+                eda_dct.plot_flip_direction_overview,
+            ),
+            plot("4-4. Flip-Verteilung nach DCT-Index", eda_dct.plot_flip_position_heatmap),
+            plot(
+                "4-5. Flip-Masken (Heat-map & Overlay)",
+                eda_dct.make_cover_stego_flipmask_widget,
+                prebuild_cache=False,
+            ),
+        ),
+    }
 
 
 def _display_result(result: Any) -> None:
@@ -207,7 +311,19 @@ class _PlotSection(ipywidgets.VBox):
         if self._last_index == index:
             return
         spec = self._plots[index]
-        cached = resolve_cached_figure_path(self._dataset_name, spec.cache_name) if self._use_cache else None
+        cached = (
+            resolve_cached_figure_path(
+                self._dataset_name,
+                spec.cache_name,
+                renderer=spec.cache_renderer,
+                parameters=spec.cache_parameters,
+                seed=spec.cache_seed,
+                source_groups=spec.source_groups,
+                image_count=spec.image_count,
+            )
+            if self._use_cache
+            else None
+        )
         if cached is not None:
             result: Any = Image(filename=str(cached))
         else:
@@ -221,6 +337,11 @@ class _PlotSection(ipywidgets.VBox):
                         figure,
                         self._dataset_name,
                         spec.cache_name,
+                        renderer=spec.cache_renderer,
+                        parameters=spec.cache_parameters,
+                        seed=spec.cache_seed,
+                        source_groups=spec.source_groups,
+                        image_count=spec.image_count,
                     )
                     result = Image(filename=str(destination))
                 finally:
@@ -284,7 +405,7 @@ def make_dropdown_section(
     description
         Dropdown label.
     use_cache
-        Whether to reuse and write generated runtime PNG cache entries.
+        Whether to reuse and write validated dataset-specific PNG cache entries.
 
     Returns
     -------

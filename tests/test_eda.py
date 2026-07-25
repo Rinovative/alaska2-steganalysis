@@ -18,6 +18,7 @@ Boundaries:
 
 from __future__ import annotations
 
+import json
 from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any
@@ -114,6 +115,34 @@ def test_outlier_z_scores_preserve_index_and_numeric_contract(monkeypatch: pytes
         eda_channels.show_outliers_by_channel(frame, z_thresh=3.0)
 
 
+def test_complete_eda_plot_catalog_preserves_section_order_and_cache_ids() -> None:
+    frame = pd.DataFrame({"source_id": ["a", "a", "b"]})
+    catalog = presentation_widgets.make_eda_plot_specs(frame, "PD12M", seed=17)
+
+    assert tuple(catalog) == tuple(key for key, _ in presentation_widgets.EDA_SECTION_TITLES)
+    assert tuple(len(catalog[key]) for key, _ in presentation_widgets.EDA_SECTION_TITLES) == (3, 2, 6, 5)
+    specs = tuple(spec for section in catalog.values() for spec in section)
+    assert [spec.cache_name for spec in specs] == [f"pd12m_plot_{index:03d}" for index in range(16)]
+    assert [spec.cache_name for spec in specs if spec.prebuild_cache] == [
+        "pd12m_plot_001",
+        "pd12m_plot_002",
+        "pd12m_plot_005",
+        "pd12m_plot_006",
+        "pd12m_plot_007",
+        "pd12m_plot_008",
+        "pd12m_plot_009",
+        "pd12m_plot_011",
+        "pd12m_plot_012",
+        "pd12m_plot_013",
+        "pd12m_plot_014",
+    ]
+    assert all(spec.cache_seed == 17 for spec in specs)
+    assert all(spec.source_groups == 2 for spec in specs)
+    assert all(spec.image_count == 3 for spec in specs)
+    assert catalog["stats"][2].cache_parameters == {"color_space": "YCbCr", "dataset_name": "PD12M"}
+    assert catalog["stats"][-1].cache_parameters == {"dataset_name": "PD12M", "z_thresh": 3.0}
+
+
 def test_runtime_cache_resolves_only_generated_figures(tmp_path: Path) -> None:
     paths = ProjectPaths(tmp_path)
     assert presentation_cache.resolve_cached_figure_path("ALASKA2", "view", paths=paths) is None
@@ -128,7 +157,98 @@ def test_runtime_cache_resolves_only_generated_figures(tmp_path: Path) -> None:
     assert presentation_cache.resolve_cached_figure_path("ALASKA2", "view", paths=paths) == destination
 
 
+def test_dataset_cache_namespaces_never_fallback_and_ignore_placeholder(tmp_path: Path) -> None:
+    paths = ProjectPaths(tmp_path)
+    alaska2_cache = paths.dataset_cache("alaska2")
+    alaska2_cache.mkdir(parents=True)
+    (alaska2_cache / ".gitkeep").touch()
+
+    figure, axis = plt.subplots()
+    axis.plot([0.0, 1.0], [1.0, 0.0])
+    pd12m = presentation_cache.save_figure(figure, "pd12m", "same-name", paths=paths)
+    plt.close(figure)
+
+    assert presentation_cache.figure_path("alaska2", "same-name", paths=paths) == alaska2_cache / "same-name.png"
+    assert pd12m == paths.dataset_cache("pd12m") / "same-name.png"
+    assert presentation_cache.resolve_cached_figure_path("pd12m", "same-name", paths=paths) == pd12m
+    assert presentation_cache.resolve_cached_figure_path("alaska2", "same-name", paths=paths) is None
+    assert presentation_cache.resolve_cached_figure_path("alaska2", ".gitkeep", paths=paths) is None
+
+
+def test_all_versioned_pd12m_plots_match_manifest_and_resolve_without_rendering() -> None:
+    paths = ProjectPaths(Path(__file__).parents[1])
+    frame = pd.DataFrame({"source_id": [f"{index:03d}" for index in range(500) for _ in range(4)]})
+    catalog = presentation_widgets.make_eda_plot_specs(frame, "PD12M", seed=42)
+    specs = tuple(spec for section in catalog.values() for spec in section if spec.prebuild_cache)
+    manifest_path = paths.dataset_cache("pd12m") / presentation_cache.CACHE_MANIFEST_NAME
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+
+    assert set(manifest["plots"]) == {f"{spec.cache_name}.png" for spec in specs}
+    for spec in specs:
+        expected = paths.dataset_cache("pd12m") / f"{spec.cache_name}.png"
+        assert (
+            presentation_cache.resolve_cached_figure_path(
+                "pd12m",
+                spec.cache_name,
+                paths=paths,
+                renderer=spec.cache_renderer,
+                parameters=spec.cache_parameters,
+                seed=spec.cache_seed,
+                source_groups=spec.source_groups,
+                image_count=spec.image_count,
+            )
+            == expected
+        )
+
+
+def test_cache_rejects_changed_parameters_content_and_version(tmp_path: Path) -> None:
+    paths = ProjectPaths(tmp_path)
+    cache_arguments: dict[str, Any] = {
+        "paths": paths,
+        "renderer": "fixture.renderer:abc123",
+        "parameters": {"channel": "Y"},
+        "seed": 42,
+        "source_groups": 500,
+        "image_count": 2_000,
+    }
+    figure, axis = plt.subplots()
+    axis.plot([0.0, 1.0], [0.0, 1.0])
+    destination = presentation_cache.save_figure(
+        figure,
+        "pd12m",
+        "versioned-view",
+        **cache_arguments,
+    )
+    plt.close(figure)
+
+    assert (
+        presentation_cache.resolve_cached_figure_path(
+            "pd12m",
+            "versioned-view",
+            **cache_arguments,
+        )
+        == destination
+    )
+    changed = {**cache_arguments, "parameters": {"channel": "Cb"}}
+    assert presentation_cache.resolve_cached_figure_path("pd12m", "versioned-view", **changed) is None
+
+    destination.write_bytes(destination.read_bytes() + b"corrupt")
+    assert presentation_cache.resolve_cached_figure_path("pd12m", "versioned-view", **cache_arguments) is None
+
+    figure, axis = plt.subplots()
+    axis.plot([1.0, 0.0], [0.0, 1.0])
+    presentation_cache.save_figure(figure, "pd12m", "versioned-view", **cache_arguments)
+    plt.close(figure)
+    manifest_path = destination.parent / presentation_cache.CACHE_MANIFEST_NAME
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["cache_version"] = -1
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    assert presentation_cache.resolve_cached_figure_path("pd12m", "versioned-view", **cache_arguments) is None
+
+
+@pytest.mark.parametrize("dataset_name", ["pd12m", "alaska2"])
 def test_cached_eda_section_generates_then_reuses_runtime_figure(
+    dataset_name: str,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -148,11 +268,11 @@ def test_cached_eda_section_generates_then_reuses_runtime_figure(
 
     section: Any = presentation_widgets.make_dropdown_section(
         [presentation_widgets.PlotSpec("view", render, "view")],
-        "ALASKA2",
+        dataset_name,
         use_cache=True,
     )
     section.activate()
-    cached = presentation_cache.figure_path("ALASKA2", "view", paths=paths)
+    cached = presentation_cache.figure_path(dataset_name, "view", paths=paths)
     assert cached.is_file()
     assert len(rendered) == 1
     assert len(displayed) == 1

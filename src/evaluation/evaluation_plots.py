@@ -31,7 +31,7 @@ import json
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Final, cast
+from typing import Final, SupportsFloat, cast
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -81,6 +81,12 @@ _MODEL_LAYOUT: Final[tuple[tuple[str, str, str], ...]] = (
 _TRAIN_COLOR: Final[str] = "#1f77b4"
 _VALIDATION_COLOR: Final[str] = "#d1495b"
 _SELECTED_COLOR: Final[str] = "#b7791f"
+
+
+def _format_runtime_seconds(value: object) -> str:
+    rounded_seconds = round(float(cast(str | SupportsFloat, value)))
+    minutes, seconds = divmod(rounded_seconds, 60)
+    return f"{minutes} min {seconds:02d} s"
 
 
 @dataclass(frozen=True, slots=True)
@@ -412,7 +418,7 @@ def load_evaluation_results(
             stage_order=EFFICIENTNET_STAGE_ORDER if key == "efficientnet_b0" else None,
         )
         best_index = timeline.dataframe["val_wauc"].astype(float).idxmax()
-        best_row = timeline.dataframe.loc[best_index]
+        best_row = cast(pd.Series, timeline.dataframe.loc[best_index])
         selected_epoch = int(best_row["epoch"])
         selected_stage = str(best_row["stage"]) if key == "efficientnet_b0" else None
         selected_wauc = float(best_row["val_wauc"])
@@ -565,7 +571,7 @@ def plot_history(
     timeline = prepare_history(dataframe, stage_order=stage_order)
     prepared = timeline.dataframe
     if selected_epoch is None:
-        best_row = prepared.loc[prepared["val_wauc"].astype(float).idxmax()]
+        best_row = cast(pd.Series, prepared.loc[prepared["val_wauc"].astype(float).idxmax()])
         selected_epoch = int(best_row["epoch"])
         if timeline.intervals:
             selected_stage = str(best_row["stage"])
@@ -968,9 +974,7 @@ def comparison_table(results: EvaluationResults) -> pd.DataFrame:
         "runtime_seconds",
     ]
     table = results.comparison.loc[:, columns].copy()
-    table["runtime"] = table["runtime_seconds"].map(
-        lambda value: f"{divmod(round(float(value)), 60)[0]} min {divmod(round(float(value)), 60)[1]:02d} s"
-    )
+    table["runtime"] = table["runtime_seconds"].map(_format_runtime_seconds)
     table = table.drop(columns="runtime_seconds")
     return table.rename(
         columns={

@@ -1,8 +1,0 @@
-* text=auto eol=lf
-*.ipynb text eol=lf
-*.csv text eol=lf
-*.gif binary
-*.jpeg binary
-*.jpg binary
-*.png binary
-*.pt binary

@@ -8,7 +8,7 @@ Responsibilities:
   - Resolve paths from the installed source location instead of the current
     directory.
   - Keep both interchangeable datasets under one project data root while
-    separating caches, checkpoints, reports, artifacts, and notebook media.
+    separating their caches, checkpoints, reports, artifacts, and notebook media.
   - Select ALASKA2 or the public PD12M proxy without silently generating
     data.
 
@@ -35,6 +35,7 @@ from typing import Final, Literal
 
 __all__ = [
     "CLASS_LABELS",
+    "DatasetCacheNamespace",
     "DatasetSelection",
     "DatasetSource",
     "ProjectPaths",
@@ -43,6 +44,7 @@ __all__ = [
 ]
 
 DatasetSource = Literal["auto", "alaska2", "synthetic"]
+DatasetCacheNamespace = Literal["alaska2", "pd12m"]
 
 CLASS_LABELS: Final[dict[str, int]] = {
     "Cover": 0,
@@ -85,8 +87,14 @@ class ProjectPaths:
 
     @property
     def cache(self) -> Path:
-        """Return the disposable runtime-cache directory."""
+        """Return the dataset-specific figure and runtime-cache root."""
         return self.root / "cache"
+
+    def dataset_cache(self, namespace: DatasetCacheNamespace) -> Path:
+        """Return one dataset-specific canonical EDA cache directory."""
+        if namespace not in {"alaska2", "pd12m"}:
+            raise ValueError("Cache namespace must be alaska2 or pd12m.")
+        return self.cache / namespace
 
     @property
     def checkpoints(self) -> Path:
@@ -104,9 +112,9 @@ class ProjectPaths:
         return self.root / "artifacts"
 
     @property
-    def notebook_assets(self) -> Path:
+    def assets(self) -> Path:
         """Return versioned images embedded in the academic notebook."""
-        return self.root / "assets" / "notebook"
+        return self.root / "assets"
 
     def create_runtime_directories(self) -> None:
         """Create the cache, checkpoint, and report directories.
@@ -147,6 +155,22 @@ class DatasetSelection:
     root: Path
     class_labels: dict[str, int]
     synthetic: bool
+
+    @property
+    def cache_namespace(self) -> DatasetCacheNamespace:
+        """Return the cache namespace of this resolved dataset.
+
+        Returns
+        -------
+        DatasetCacheNamespace
+            ``pd12m`` for the synthetic proxy and ``alaska2`` for real data.
+
+        Notes
+        -----
+        This value is derived only after dataset selection, so the unresolved
+        configuration value ``auto`` can never become a cache namespace.
+        """
+        return "pd12m" if self.synthetic else "alaska2"
 
 
 def default_paths() -> ProjectPaths:

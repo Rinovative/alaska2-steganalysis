@@ -1,0 +1,140 @@
+{
+  "cache_version": 1,
+  "dataset_source": "pd12m",
+  "image_count": 2000,
+  "plots": {
+    "pd12m_plot_001.png": {
+      "bytes": 22129,
+      "fingerprint": "16da11c9df7c0f15b459d14c6415c8068062ad67ee501e955110f92dbf85017e",
+      "height": 528,
+      "parameters": {
+        "dataset_name": "PD12M"
+      },
+      "plot_id": "pd12m_plot_001",
+      "renderer": "src.eda.eda_overview.plot_class_distribution:7bf07c599fe0ddd1",
+      "sha256": "9ad6b37aba82c01c441206a89beb9fa6780d3425be77475ec7dbe295456b4747",
+      "width": 696
+    },
+    "pd12m_plot_002.png": {
+      "bytes": 33553,
+      "fingerprint": "6f666b1053d3d1beac0ac0d0f8ca04d0ea27adfd813c0ccd411b58779ef67b7e",
+      "height": 473,
+      "parameters": {
+        "dataset_name": "PD12M"
+      },
+      "plot_id": "pd12m_plot_002",
+      "renderer": "src.eda.eda_overview.plot_jpeg_quality_distribution:7bf07c599fe0ddd1",
+      "sha256": "dd2bd0844182a7eabb3e46890c520e3ec4ffd36ad15495cc057dcf0db7cb13ed",
+      "width": 696
+    },
+    "pd12m_plot_005.png": {
+      "bytes": 153357,
+      "fingerprint": "364240ea2d04a7c91c901e1afbce40e54c9c8ecfe71792c6ebf553de22586817",
+      "height": 1102,
+      "parameters": {
+        "dataset_name": "PD12M"
+      },
+      "plot_id": "pd12m_plot_005",
+      "renderer": "src.eda.eda_channels.plot_pixel_histograms:1841ef7569a182ac",
+      "sha256": "e6cf49c4c61ef7b89cf211f96b262fd6f9c7485203dc5995e350f2c4b79de980",
+      "width": 1787
+    },
+    "pd12m_plot_006.png": {
+      "bytes": 51645,
+      "fingerprint": "c4d4a33ee266faae67452ab8f1cf9a0bea33771d581baf6f536cbc79585d3342",
+      "height": 1190,
+      "parameters": {
+        "dataset_name": "PD12M"
+      },
+      "plot_id": "pd12m_plot_006",
+      "renderer": "src.eda.eda_channels.plot_image_mean_distribution:1841ef7569a182ac",
+      "sha256": "c2b9eccd429f560f799d466f101025caa4fe0e2b3976dfc7120c7d9092a9f11f",
+      "width": 790
+    },
+    "pd12m_plot_007.png": {
+      "bytes": 221261,
+      "fingerprint": "e418a5fecd78a344064a5f1494d0e5162a30affb44d88e4bb95844b2d29899cb",
+      "height": 1475,
+      "parameters": {
+        "color_space": "YCbCr",
+        "dataset_name": "PD12M"
+      },
+      "plot_id": "pd12m_plot_007",
+      "renderer": "src.eda.eda_channels.plot_kde_and_boxplot:1841ef7569a182ac",
+      "sha256": "b6314c320538e894d4560640596619c5a4dd0b28059fd4a93b850b480a587b1d",
+      "width": 1490
+    },
+    "pd12m_plot_008.png": {
+      "bytes": 66340,
+      "fingerprint": "0ae2fd5eddc47e79b68f497096a080fbee76c393b81216f6cc5cb9238c30ab80",
+      "height": 397,
+      "parameters": {
+        "dataset_name": "PD12M"
+      },
+      "plot_id": "pd12m_plot_008",
+      "renderer": "src.eda.eda_channels.plot_channel_correlation:1841ef7569a182ac",
+      "sha256": "9fdfe5fe5f0e4b95a995f2fda3d095046f5b6bfbbac907e2e8db65ea198e2f57",
+      "width": 1483
+    },
+    "pd12m_plot_009.png": {
+      "bytes": 221466,
+      "fingerprint": "c689400553b59b534ff5f7beff1838348dc98b4a419d54b0407cbd69c7a756a8",
+      "height": 1475,
+      "parameters": {
+        "color_space": "RGB",
+        "dataset_name": "PD12M"
+      },
+      "plot_id": "pd12m_plot_009",
+      "renderer": "src.eda.eda_channels.plot_kde_and_boxplot:1841ef7569a182ac",
+      "sha256": "5e928b7ced228d43415e6d5f41e3fc19034144532c9a786af42422072abee775",
+      "width": 1490
+    },
+    "pd12m_plot_011.png": {
+      "bytes": 136840,
+      "fingerprint": "d0edf179312d1e95a69c1bd2379dc7e57e738ab63961a1b5db3deeef769d7cdc",
+      "height": 397,
+      "parameters": {
+        "dataset_name": "PD12M"
+      },
+      "plot_id": "pd12m_plot_011",
+      "renderer": "src.eda.eda_dct.plot_dct_avg_and_delta:cda8468a313ae47c",
+      "sha256": "d81cbe41d39e496c518fe39793a9e99a62be537dbe89772b8e118eddcac773a7",
+      "width": 1975
+    },
+    "pd12m_plot_012.png": {
+      "bytes": 74498,
+      "fingerprint": "7b3567a345b8edf93a20bb93ac3fb4dbcecbebedfb3be6e802da483d1e2b4035",
+      "height": 1181,
+      "parameters": {},
+      "plot_id": "pd12m_plot_012",
+      "renderer": "src.eda.eda_dct.plot_flip_counts:cda8468a313ae47c",
+      "sha256": "886c9069e1deb397f4a6173ff5adad39c19136275c7a29d765bd8f87f99b7dd4",
+      "width": 1390
+    },
+    "pd12m_plot_013.png": {
+      "bytes": 38856,
+      "fingerprint": "5795521d926906b1e301ace2a100681ceb3b24515c78f444aadd40a4a43ce58f",
+      "height": 701,
+      "parameters": {},
+      "plot_id": "pd12m_plot_013",
+      "renderer": "src.eda.eda_dct.plot_flip_direction_overview:cda8468a313ae47c",
+      "sha256": "66b03b806341181580b4cafc7bd665473aac723b4134751f8335109f40fe09e3",
+      "width": 717
+    },
+    "pd12m_plot_014.png": {
+      "bytes": 45481,
+      "fingerprint": "a5d4abce1b0585e2088b8fdd2821e4303c393c84ffc89eca90219293267e8d9d",
+      "height": 397,
+      "parameters": {
+        "dataset_name": "PD12M"
+      },
+      "plot_id": "pd12m_plot_014",
+      "renderer": "src.eda.eda_dct.plot_flip_position_heatmap:cda8468a313ae47c",
+      "sha256": "ecf85caea470b8c2376909be151481deedca6d40e78f9049c73697c6c10bbc59",
+      "width": 1478
+    }
+  },
+  "renderer_version": "eda-renderer-v1",
+  "seed": 42,
+  "source_groups": 500
+}

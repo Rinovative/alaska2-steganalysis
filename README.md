@@ -40,7 +40,7 @@ Eine Quellgruppe umfasst jeweils das unveränderte Cover-Bild und die drei zugeh
 
 Die Modellauswahl erfolgt anhand der Weighted AUC auf dem Validierungssplit. Der gemeinsame Testsplit wird erst nach abgeschlossener Modellauswahl genau einmal pro Modell ausgewertet.
 
-Da der originale ALASKA2-Datensatz nicht frei weitergegeben werden darf, unterstützt das Projekt zusätzlich einen öffentlichen synthetischen Ersatzdatensatz auf Basis von PD12M. ALASKA2 und der Ersatzdatensatz bleiben vollständig getrennt und werden nicht miteinander vermischt.
+Der originale ALASKA2-Datensatz ist nicht Bestandteil dieses Repositories. Für Demonstrationszwecke unterstützt das Projekt deshalb zusätzlich einen öffentlichen synthetischen Ersatzdatensatz auf Basis von PD12M. ALASKA2 und der Ersatzdatensatz bleiben vollständig getrennt und werden nicht miteinander vermischt.
 
 **Hinweis zum synthetischen Ersatzdatensatz:** Die im Projektworkflow als JMiPOD bezeichnete Kompatibilitätsklasse wird technisch mit nsF5 erzeugt. Sie ist deshalb wissenschaftlich nicht mit echtem ALASKA2-JMiPOD gleichzusetzen. Das synthetische Demo-Subset enthält keine echten Nachrichten, sondern simuliert typische Frequenzmodifikationen von Steganographieverfahren.
 
@@ -79,6 +79,8 @@ Die explorative Datenanalyse untersucht die Bilder auf mehreren Darstellungseben
 - lokale Unterschiede zwischen Cover- und Stego-Bildern
 - JPEG-Qualität und Quantisierungstabellen
 - DCT-Koeffizienten und methodenspezifische Flip-Muster
+
+Für PD12M lädt das Notebook elf vorbereitete, versionierte EDA-Plots aus dem datenquellenspezifischen Cache wobei interaktive Ansichten weiterhin dynamisch erzeugt werden. ALASKA2-Plots werden bei lokal vorhandenem Originaldatensatz ausschliesslich in dessen getrenntem Cache erzeugt. Daten und Cachedateien werden nicht zwischen den beiden Quellen wiederverwendet.
 
 Für ALASKA2 verwendet die EDA eine separate, deterministische Stichprobe von 7'500 vollständigen Quellgruppen. Diese Stichprobe beeinflusst weder die Trainings- noch die Testmitgliedschaften.
 
@@ -322,11 +324,25 @@ Checkpoints und Trainingsverläufe werden nach Datensatz, Modell und Laufkennung
 │               └── predictions/                                         # Testvorhersagen, lokal ignoriert
 │
 ├── assets/                                                              # Direkt eingebundene Notebook-Medien
-│   └── notebook/                                                        # Logo, Signatur sowie DCT-/IDCT-Lehrmedien
+│   ├── DCT-animation.gif                                                # IDCT-Lehranimation
+│   ├── DCTjpeg.png                                                      # DCT-Basisdarstellung
+│   ├── OST_Logo_DE_RGB@2000ppi.png                                      # Institutionelles Logo
+│   └── Unterschrift.png                                                 # Signatur der Selbstständigkeitserklärung
+│
+├── cache/                                                               # Datenquellenspezifische EDA-Plotcaches
+│   ├── alaska2/                                                         # Lokaler ALASKA2-Cache, nur Platzhalter versioniert
+│   │   └── .gitkeep
+│   └── pd12m/                                                           # Vorbereitete PD12M-EDA-Plots für Colab
+│       ├── manifest.json                                                # Provenienz und Cachevalidierung
+│       └── <11 vorbereitete PNG-Dateien>
 │
 ├── data/                                                                # Lokale Datensatzwurzeln
 │   ├── ALASKA2/                                                         # Cover, JMiPOD, JUNIWARD und UERD
 │   └── PD12M/                                                           # Öffentlicher synthetischer Ersatzdatensatz
+│
+├── scripts/
+│   ├── generate_pd12m_plot_cache.py                                     # Erzeugt den versionierten PD12M-EDA-Cache
+│   └── setup_colab.py                                                   # Richtet die Colab-Umgebung idempotent ein
 │
 ├── src/
 │   ├── __init__.py                                                      # Exportiert die öffentlichen Teilpakete
@@ -390,16 +406,12 @@ Checkpoints und Trainingsverläufe werden nach Datensatz, Modell und Laufkennung
 │       ├── transforms_shuffle.py                                        # Ordnet Bildkacheln zufällig neu
 │       └── transforms_spatial.py                                        # Erzeugt blockausgerichtete Bildausschnitte
 │
-├── scripts/
-│   └── setup_colab.py                                                   # Idempotente Colab-Umgebungseinrichtung
-│
 ├── tests/                                                               # Verhaltens- und Vertragsprüfungen
 │
 ├── checkpoints/                                                         # Lokal erzeugte Modellzustände
 ├── reports/                                                             # Lokal erzeugte Trainingsverläufe
 │
 ├── .dockerignore                                                        # Begrenzt den Docker-Build-Kontext
-├── .gitattributes                                                       # Repository-weite Dateiattribute
 ├── .gitignore                                                           # Ignoriert Daten und Laufzeitartefakte
 ├── ANN_Projekt_Rino_Albertin_Steganalyse.ipynb                          # Akademische Ausarbeitung
 ├── LICENSE.md                                                           # MIT-Lizenz
@@ -419,8 +431,14 @@ Dieses Projekt steht unter der [MIT-Lizenz](LICENSE.md).
 
 ## 📚 Quellen
 
-- Kaggle, **ALASKA2 Image Steganalysis Challenge**:
-  [https://www.kaggle.com/competitions/alaska2-image-steganalysis](https://www.kaggle.com/competitions/alaska2-image-steganalysis)
-- Rinovative, **PD12M DCT-based Synthetic Steganography Dataset**:
-  [https://huggingface.co/datasets/Rinovative/pd12m_dct_based_synthetic_stegano](https://huggingface.co/datasets/Rinovative/pd12m_dct_based_synthetic_stegano)
+- Kaggle, **ALASKA2 Image Steganalysis**:
+  [Wettbewerbsseite](https://www.kaggle.com/competitions/alaska2-image-steganalysis)
+- ALASKA Team, **ALASKA Steganalysis Challenge**:
+  [Projekt- und Lizenzinformationen](https://alaska.utt.fr/)
+- Meyer, J., Padgett, N., Miller, C., & Exline, L. (2024), **Public Domain 12M: A Highly Aesthetic Image-Text Dataset with Novel Governance Mechanisms**:
+  [arXiv](https://arxiv.org/abs/2410.23144)
+- Rinovative (2025), **PD12M DCT-Based Synthetic Steganography Dataset**:
+  [Hugging Face](https://huggingface.co/datasets/Rinovative/pd12m_dct_based_synthetic_stegano)
+- Lorch, B., & Benes, M. (2024), **conseal: Simulation Framework for JPEG Steganography**:
+  [GitHub](https://github.com/uibk-uncover/conseal)
 - OST – Ostschweizer Fachhochschule, **Lehrunterlagen Applied Neural Networks**, Frühjahr 2025.
