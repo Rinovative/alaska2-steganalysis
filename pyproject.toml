@@ -101,7 +101,7 @@ pytest-cov = ">=6.2,<7"
 ruff = ">=0.12,<1"
 
 [tool.pyright]
-include = ["src", "tests"]
+include = ["src", "tests", "scripts"]
 pythonVersion = "3.11"
 typeCheckingMode = "standard"
 

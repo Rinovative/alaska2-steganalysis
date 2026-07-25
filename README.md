@@ -48,7 +48,7 @@ Da der originale ALASKA2-Datensatz nicht frei weitergegeben werden darf, unterst
 
 ## 🧱 Projektkomponenten
 
-Das Repository ist in folgende fachliche Komponenten gegliedert
+Das Repository ist in folgende fachliche Komponenten gegliedert:
 
 <details>
 <summary><strong>🗂️ Datengrundlage und synthetischer Ersatzdatensatz</strong></summary>
@@ -169,7 +169,7 @@ EfficientNet-B0 erreichte auf der Validierung den geringfügig höheren Wert. Di
 
 Die zentrale Forschungsfrage ist für die untersuchte Konfiguration klar zu beantworten: Mit TinyCNN und EfficientNet-B0 wurde keine zuverlässige Erkennung der subtilen steganographischen Veränderungen erreicht. Beide Testwerte liegen nahe am Referenzwert von rund 0.585714 für eine diagonale ROC-Kurve unter der verwendeten ALASKA2-Gewichtung.
 
-Eine wesentliche Einschränkung ist der reduzierte Trainingsumfang von 6'000 Gruppen beziehungsweise 10 % des Trainingsreservoirs. Die geringere Bildvielfalt könnte die Generalisierung eingeschränkt haben wobei der Einfluss der Datenmenge jedoch nicht isoliert untersucht wurde.
+Eine wesentliche Einschränkung ist der reduzierte Trainingsumfang von 6'000 Gruppen beziehungsweise 10 % des Trainingsreservoirs. Die geringere Bildvielfalt könnte die Generalisierung eingeschränkt haben; der Einfluss der Datenmenge wurde jedoch nicht isoliert untersucht.
 
 Die vollständige Methodik, modellbezogene Interpretation und interaktive Evaluation befinden sich in [Kapitel 5 des akademischen Notebooks](ANN_Projekt_Rino_Albertin_Steganalyse.ipynb).
 
@@ -389,6 +389,9 @@ Checkpoints und Trainingsverläufe werden nach Datensatz, Modell und Laufkennung
 │       ├── __init__.py
 │       ├── transforms_shuffle.py                                        # Ordnet Bildkacheln zufällig neu
 │       └── transforms_spatial.py                                        # Erzeugt blockausgerichtete Bildausschnitte
+│
+├── scripts/
+│   └── setup_colab.py                                                   # Idempotente Colab-Umgebungseinrichtung
 │
 ├── tests/                                                               # Verhaltens- und Vertragsprüfungen
 │
