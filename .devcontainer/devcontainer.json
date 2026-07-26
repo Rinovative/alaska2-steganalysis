@@ -15,7 +15,7 @@
         "POETRY_VIRTUALENVS_IN_PROJECT": "false"
     },
     "workspaceFolder": "/workspaces/alaska2-steganalysis",
-    "postCreateCommand": "poetry install --with dev,notebook,optimization,generation --extras cuda --no-interaction --no-ansi",
+    "postCreateCommand": "poetry install --with dev,notebook,optimization,generation --extras cuda --no-interaction --no-ansi --no-cache && rm -rf /root/.cache/pip /root/.cache/pypoetry",
     "customizations": {
         "vscode": {
             "settings": {
